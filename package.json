@@ -1,0 +1,23 @@
+{
+  "name": "real-time-collaboration-platform",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Ankur Shakya",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "start" : "node src/server.js",
+    "dev" : "nodemon src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
