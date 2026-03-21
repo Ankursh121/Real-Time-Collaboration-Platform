@@ -1,7 +1,7 @@
 import Attendance from "../models/attendance.models.js";
 import User from "../models/users.models.js";
 import ApiError from "../utils/ApiError.js";
-import asyncHandler from "../utils/asyncHandler.js";
+import {asyncHandler} from "../utils/asyncHandler.js";
 
 /**
  * @desc    Mark attendance (Admin or Owner)

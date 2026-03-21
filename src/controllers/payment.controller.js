@@ -4,7 +4,7 @@ import Rate from "../models/rate.models.js";
 import User from "../models/users.models.js";
 import { calculateWage } from "../utils/wageCalculator.js";
 import ApiError from "../utils/ApiError.js";
-import asyncHandler from "../utils/asyncHandler.js";
+import {asyncHandler} from "../utils/asyncHandler.js";
 
 /**
  * @desc Generate payment for worker
@@ -81,6 +81,50 @@ export const generatePayment = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: "Payment generated successfully",
+    data: payment,
+  });
+});
+
+export const updatePaymentStatus = asyncHandler(async (req, res) => {
+  const { paymentId } = req.params;
+  const { paidAmount } = req.body;
+
+  if (!paymentId) {
+    throw new ApiError(400, "Payment ID is required");
+  }
+
+  const payment = await Payment.findById(paymentId);
+
+  if (!payment) {
+    throw new ApiError(404, "Payment not found");
+  }
+
+  // Ensure same owner
+  if (payment.ownerId.toString() !== req.user.userId.toString()) {
+    throw new ApiError(403, "Unauthorized action");
+  }
+
+  if (paidAmount == null || paidAmount < 0) {
+    throw new ApiError(400, "Invalid paid amount");
+  }
+
+  // Update paid amount
+  payment.paidAmount = paidAmount;
+
+  // Update status based on payment
+  if (paidAmount === 0) {
+    payment.status = "PENDING";
+  } else if (paidAmount < payment.totalAmount) {
+    payment.status = "PARTIAL";
+  } else if (paidAmount >= payment.totalAmount) {
+    payment.status = "PAID";
+  }
+
+  await payment.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Payment status updated successfully",
     data: payment,
   });
 });
