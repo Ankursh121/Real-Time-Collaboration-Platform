@@ -1,14 +1,11 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
 import User from "../models/users.models.js";
 import ApiError from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 /**
- * ==========================================================
  * 🔐 Generate Access Token
- * ==========================================================
  */
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -24,94 +21,97 @@ const generateAccessToken = (user) => {
   );
 };
 
-// Signup of user - 
-
-export const registerUser = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
-
-    // check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists",
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // create user
-    const user = await User.create({
-      name,
-      email,
-      password : hashedPassword,
-      role,
-    });
-
-    // generate token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "30d" }
-    );
-
-    res.status(201).json({
-      success: true,
-      token,
-      user,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
 /**
  * ==========================================================
- * 1️⃣ LOGIN USER (Owner / Admin / Worker)
+ * 1️⃣ SEND OTP
  * ==========================================================
- * @route   POST /api/auth/login
- * @access  Public
+ * @route POST /api/auth/send-otp
  */
-export const loginUser = asyncHandler(async (req, res) => {
-  const { phone, password } = req.body;
+export const sendOTP = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
 
-  if (!phone || !password) {
-    throw new ApiError(400, "Phone and password are required");
+  if (!phone) {
+    throw new ApiError(400, "Phone number is required");
   }
 
-  // Fetch user with password
-  const user = await User.findOne({ phone }).select("+password");
+  // generate OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+
+  let user = await User.findOne({ phone });
+
+  if (!user) {
+    // create minimal user
+    user = await User.create({
+      phone,
+      name: "Temp",
+      gender: "Male",
+    });
+  }
+
+  user.OTP = otp;
+  user.OTPExpiresAt = otpExpiry;
+
+  await user.save();
+
+  console.log("OTP:", otp); // 🔥 for testing
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "OTP sent successfully"));
+});
+
+/**
+ * ==========================================================
+ * 2️⃣ VERIFY OTP (Login + Signup)
+ * ==========================================================
+ * @route POST /api/auth/verify-otp
+ */
+export const verifyOTP = asyncHandler(async (req, res) => {
+  const { phone, otp, name, role, inviteCode } = req.body;
+
+  if (!phone || !otp) {
+    throw new ApiError(400, "Phone and OTP are required");
+  }
+
+  const user = await User.findOne({ phone }).select("+OTP");
 
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
-  // Compare password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-
-  if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid credentials");
+  // validate OTP
+  if (!user.OTP || user.OTP !== otp) {
+    throw new ApiError(400, "Invalid OTP");
   }
 
-  // Block pending workers
-  if (user.role === "WORKER" && user.status !== "ACTIVE") {
-    throw new ApiError(
-      403,
-      "Your account is pending approval by the contractor"
-    );
+  if (user.OTPExpiresAt < new Date()) {
+    throw new ApiError(400, "OTP expired");
   }
 
-  // Generate token
+  // update user info (signup case)
+  if (name) user.name = name;
+  if (role) user.role = role;
+
+  // worker invite code logic
+  if (role === "Worker" && inviteCode) {
+    const owner = await User.findOne({ inviteCode });
+
+    if (!owner) {
+      throw new ApiError(400, "Invalid invite code");
+    }
+
+    user.ownerId = owner._id;
+    user.status = "Active";
+  }
+
+  // clear OTP
+  user.OTP = undefined;
+  user.OTPExpiresAt = undefined;
+
+  await user.save();
+
   const accessToken = generateAccessToken(user);
 
   return res
@@ -139,10 +139,8 @@ export const loginUser = asyncHandler(async (req, res) => {
 
 /**
  * ==========================================================
- * 2️⃣ LOGOUT USER
+ * 3️⃣ LOGOUT USER
  * ==========================================================
- * @route   POST /api/auth/logout
- * @access  Protected
  */
 export const logoutUser = asyncHandler(async (req, res) => {
   return res
@@ -153,21 +151,17 @@ export const logoutUser = asyncHandler(async (req, res) => {
 
 /**
  * ==========================================================
- * 3️⃣ GET CURRENT LOGGED-IN USER
+ * 4️⃣ GET CURRENT USER
  * ==========================================================
- * @route   GET /api/auth/me
- * @access  Protected
  */
 export const getCurrentUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.userId).select(
-    "-password -OTP"
-  );
+  const user = await User.findById(req.user.userId).select("-password -OTP");
 
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
-  return res.status(200).json(
-    new ApiResponse(200, user, "Current user fetched successfully")
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User fetched successfully"));
 });
