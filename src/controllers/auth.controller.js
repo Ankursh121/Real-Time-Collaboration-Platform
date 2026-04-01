@@ -4,9 +4,7 @@ import ApiError from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-/**
- * 🔐 Generate Access Token
- */
+
 const generateAccessToken = (user) => {
   return jwt.sign(
     {
@@ -21,12 +19,7 @@ const generateAccessToken = (user) => {
   );
 };
 
-/**
- * ==========================================================
- * 1️⃣ SEND OTP
- * ==========================================================
- * @route POST /api/auth/send-otp
- */
+
 export const sendOTP = asyncHandler(async (req, res) => {
   const { phone } = req.body;
 
@@ -34,7 +27,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Phone number is required");
   }
 
-  // generate OTP
+
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
@@ -42,7 +35,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
   let user = await User.findOne({ phone });
 
   if (!user) {
-    // create minimal user
+   
     user = await User.create({
       phone,
       name: "Temp",
@@ -55,19 +48,14 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  console.log("OTP:", otp); // 🔥 for testing
+  console.log("OTP:", otp); 
 
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "OTP sent successfully"));
 });
 
-/**
- * ==========================================================
- * 2️⃣ VERIFY OTP (Login + Signup)
- * ==========================================================
- * @route POST /api/auth/verify-otp
- */
+
 export const verifyOTP = asyncHandler(async (req, res) => {
   const { phone, otp, name, role, inviteCode } = req.body;
 
@@ -81,7 +69,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  // validate OTP
+
   if (!user.OTP || user.OTP !== otp) {
     throw new ApiError(400, "Invalid OTP");
   }
@@ -90,11 +78,10 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     throw new ApiError(400, "OTP expired");
   }
 
-  // update user info (signup case)
   if (name) user.name = name;
   if (role) user.role = role;
 
-  // worker invite code logic
+
   if (role === "Worker" && inviteCode) {
     const owner = await User.findOne({ inviteCode });
 
@@ -106,7 +93,6 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     user.status = "Active";
   }
 
-  // clear OTP
   user.OTP = undefined;
   user.OTPExpiresAt = undefined;
 
@@ -137,11 +123,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     );
 });
 
-/**
- * ==========================================================
- * 3️⃣ LOGOUT USER
- * ==========================================================
- */
+
 export const logoutUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
@@ -149,11 +131,6 @@ export const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Logged out successfully"));
 });
 
-/**
- * ==========================================================
- * 4️⃣ GET CURRENT USER
- * ==========================================================
- */
 export const getCurrentUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.userId).select("-password -OTP");
 

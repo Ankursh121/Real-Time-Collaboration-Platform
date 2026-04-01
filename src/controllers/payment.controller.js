@@ -6,11 +6,6 @@ import { calculateWage } from "../utils/wageCalculator.js";
 import ApiError from "../utils/ApiError.js";
 import {asyncHandler} from "../utils/asyncHandler.js";
 
-/**
- * @desc Generate payment for worker
- * @route POST /api/payments/generate
- * @access OWNER only
- */
 
 export const generatePayment = asyncHandler(async (req, res) => {
   const { workerId, siteId, periodStart, periodEnd } = req.body;
@@ -24,12 +19,11 @@ export const generatePayment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Worker not found");
   }
 
-  // Ensure same contractor
+ 
   if (worker.ownerId.toString() !== req.user.userId.toString()) {
     throw new ApiError(403, "Unauthorized action");
   }
 
-  // Get attendance records
   const attendances = await Attendance.find({
     workerId,
     siteId,
@@ -99,7 +93,7 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Payment not found");
   }
 
-  // Ensure same owner
+
   if (payment.ownerId.toString() !== req.user.userId.toString()) {
     throw new ApiError(403, "Unauthorized action");
   }
@@ -108,10 +102,9 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid paid amount");
   }
 
-  // Update paid amount
+
   payment.paidAmount = paidAmount;
 
-  // Update status based on payment
   if (paidAmount === 0) {
     payment.status = "PENDING";
   } else if (paidAmount < payment.totalAmount) {

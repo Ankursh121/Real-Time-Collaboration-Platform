@@ -4,13 +4,7 @@ import  ApiError from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-/**
- * ==========================================================
- * 1️⃣ CREATE SITE
- * ==========================================================
- * @route   POST /api/sites
- * @access  OWNER
- */
+
 export const createSite = asyncHandler(async (req, res) => {
   const { name, location, description, startDate } = req.body;
 
@@ -31,13 +25,7 @@ export const createSite = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 2️⃣ GET ALL SITES (Owner Only)
- * ==========================================================
- * @route   GET /api/sites
- * @access  OWNER
- */
+
 export const getSites = asyncHandler(async (req, res) => {
   const sites = await Site.find({
     ownerId: req.user.userId,
@@ -48,13 +36,7 @@ export const getSites = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 3️⃣ GET SINGLE SITE
- * ==========================================================
- * @route   GET /api/sites/:siteId
- * @access  OWNER
- */
+
 export const getSingleSite = asyncHandler(async (req, res) => {
   const { siteId } = req.params;
 
@@ -72,13 +54,7 @@ export const getSingleSite = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 4️⃣ UPDATE SITE
- * ==========================================================
- * @route   PATCH /api/sites/:siteId
- * @access  OWNER
- */
+
 export const updateSite = asyncHandler(async (req, res) => {
   const { siteId } = req.params;
   const { name, location, description, endDate } = req.body;
@@ -104,13 +80,7 @@ export const updateSite = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 5️⃣ DEACTIVATE SITE
- * ==========================================================
- * @route   PATCH /api/sites/deactivate/:siteId
- * @access  OWNER
- */
+
 export const deactivateSite = asyncHandler(async (req, res) => {
   const { siteId } = req.params;
 
@@ -133,13 +103,7 @@ export const deactivateSite = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 6️⃣ ASSIGN WORKER TO SITE
- * ==========================================================
- * @route   PATCH /api/sites/assign-worker/:siteId
- * @access  OWNER
- */
+
 export const assignWorkerToSite = asyncHandler(async (req, res) => {
   const { siteId } = req.params;
   const { workerId } = req.body;

@@ -12,10 +12,10 @@ import { isWorker } from "../middlewares/role.middleware.js";
 
 const router = express.Router();
 
-// Public
+
 router.post("/register", registerWorker);
 
-// Worker protected
+
 router.get("/me", verifyJWT, isWorker, getMyProfile);
 router.get("/attendance", verifyJWT, isWorker, getMyAttendance);
 router.get("/payments", verifyJWT, isWorker, getMyPayments);

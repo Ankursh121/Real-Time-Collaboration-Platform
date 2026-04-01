@@ -6,13 +6,6 @@ import  ApiError  from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-/**
- * ==========================================================
- * 1️⃣ GET ALL PENDING WORKERS
- * ==========================================================
- * @route   GET /api/owners/pending-workers
- * @access  OWNER
- */
 
 export const getPendingWorkers = asyncHandler(async (req, res) => {
   const workers = await User.find({
@@ -26,13 +19,7 @@ export const getPendingWorkers = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 2️⃣ APPROVE WORKER
- * ==========================================================
- * @route   PATCH /api/owners/approve/:workerId
- * @access  OWNER
- */
+  
 export const approveWorker = asyncHandler(async (req, res) => {
   const { workerId } = req.params;
 
@@ -54,13 +41,7 @@ export const approveWorker = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 3️⃣ DEACTIVATE WORKER
- * ==========================================================
- * @route   PATCH /api/owners/deactivate/:workerId
- * @access  OWNER
- */
+
 export const deactivateWorker = asyncHandler(async (req, res) => {
   const { workerId } = req.params;
 
@@ -81,13 +62,7 @@ export const deactivateWorker = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 4️⃣ ASSIGN ADMIN ROLE
- * ==========================================================
- * @route   PATCH /api/owners/assign-admin/:workerId
- * @access  OWNER
- */
+
 export const assignAdminRole = asyncHandler(async (req, res) => {
   const { workerId } = req.params;
 
@@ -109,13 +84,7 @@ export const assignAdminRole = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 5️⃣ REMOVE ADMIN ROLE
- * ==========================================================
- * @route   PATCH /api/owners/remove-admin/:workerId
- * @access  OWNER
- */
+
 export const removeAdminRole = asyncHandler(async (req, res) => {
   const { workerId } = req.params;
 
@@ -137,13 +106,7 @@ export const removeAdminRole = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 6️⃣ CREATE OR UPDATE RATE
- * ==========================================================
- * @route   POST /api/owners/rates
- * @access  OWNER
- */
+
 export const createRate = asyncHandler(async (req, res) => {
   const { siteId, workerType, dailyRate, overtimeRatePerHour } = req.body;
 
@@ -155,7 +118,6 @@ export const createRate = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Required rate fields missing");
   }
 
-  // Deactivate previous active rate
   await Rate.updateMany(
     {
       ownerId: req.user.userId,
@@ -181,13 +143,7 @@ export const createRate = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 7️⃣ GET ACTIVE RATES
- * ==========================================================
- * @route   GET /api/owners/rates
- * @access  OWNER
- */
+
 export const getActiveRates = asyncHandler(async (req, res) => {
   const rates = await Rate.find({
     ownerId: req.user.userId,
@@ -199,13 +155,7 @@ export const getActiveRates = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 8️⃣ GET ALL WORKERS (ACTIVE)
- * ==========================================================
- * @route   GET /api/owners/workers
- * @access  OWNER
- */
+
 export const getAllWorkers = asyncHandler(async (req, res) => {
   const workers = await User.find({
     ownerId: req.user.userId,
@@ -217,13 +167,7 @@ export const getAllWorkers = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 9️⃣ OWNER DASHBOARD SUMMARY
- * ==========================================================
- * @route   GET /api/owners/dashboard
- * @access  OWNER
- */
+
 export const getOwnerDashboard = asyncHandler(async (req, res) => {
   const totalWorkers = await User.countDocuments({
     ownerId: req.user.userId,

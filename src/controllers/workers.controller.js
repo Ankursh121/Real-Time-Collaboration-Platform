@@ -7,13 +7,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import bcrypt from "bcrypt";
 
-/**
- * ==========================================================
- * 1️⃣ REGISTER WORKER (Self Registration)
- * ==========================================================
- * @route   POST /api/workers/register
- * @access  Public
- */
 
 export const registerWorker = asyncHandler(async (req, res) => {
   const { name, phone, gender, workerType, password, inviteCode } = req.body;
@@ -31,7 +24,7 @@ export const registerWorker = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with this phone already exists");
   }
 
-  // 🔹 Find owner using invite code
+
   const owner = await User.findOne({
     inviteCode,
     role: "OWNER",
@@ -41,7 +34,7 @@ export const registerWorker = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid contractor invite code");
   }
 
-  // 🔹 Upload photo (mandatory)
+
   const photoLocalPath = req.files?.photo?.[0]?.path;
   if (!photoLocalPath) {
     throw new ApiError(400, "Worker photo is required");
@@ -52,16 +45,14 @@ export const registerWorker = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Photo upload failed");
   }
 
-  // 🔹 Upload Aadhaar (optional)
   let aadharUpload = null;
   if (req.files?.aadhar?.[0]?.path) {
     aadharUpload = await uploadOnCloudinary(req.files.aadhar[0].path);
   }
 
-  // 🔹 Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // 🔹 Create worker (PENDING by default)
+ 
   const worker = await User.create({
     name,
     phone,
@@ -88,13 +79,7 @@ export const registerWorker = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 2️⃣ GET LOGGED-IN WORKER PROFILE
- * ==========================================================
- * @route   GET /api/workers/me
- * @access  WORKER (Protected)
- */
+
 export const getMyProfile = asyncHandler(async (req, res) => {
   const worker = await User.findById(req.user.userId).select(
     "-password -OTP"
@@ -109,13 +94,7 @@ export const getMyProfile = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 3️⃣ GET MY ATTENDANCE RECORDS
- * ==========================================================
- * @route   GET /api/workers/attendance
- * @access  WORKER (Protected)
- */
+
 export const getMyAttendance = asyncHandler(async (req, res) => {
   const attendance = await Attendance.find({
     workerId: req.user.userId,
@@ -132,13 +111,7 @@ export const getMyAttendance = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 4️⃣ GET MY PAYMENT HISTORY
- * ==========================================================
- * @route   GET /api/workers/payments
- * @access  WORKER (Protected)
- */
+
 export const getMyPayments = asyncHandler(async (req, res) => {
   const payments = await Payment.find({
     workerId: req.user.userId,
@@ -155,13 +128,6 @@ export const getMyPayments = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * ==========================================================
- * 5️⃣ GET WORKER EARNING SUMMARY (Optional but Powerful)
- * ==========================================================
- * @route   GET /api/workers/summary
- * @access  WORKER (Protected)
- */
 export const getMyEarningSummary = asyncHandler(async (req, res) => {
   const payments = await Payment.find({
     workerId: req.user.userId,
