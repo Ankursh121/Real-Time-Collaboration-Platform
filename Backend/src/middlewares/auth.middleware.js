@@ -21,7 +21,7 @@ import { UserStatus } from "../constants/user.constants.js";
     }
 
     const user = await User.findById(decoded.userId).select(
-      "_id role status ownerId workerType siteId"
+      "_id role status ownerId workerType siteId name inviteCode"
     );
 
     if (!user) {
@@ -41,6 +41,8 @@ import { UserStatus } from "../constants/user.constants.js";
       ownerId: user.ownerId,
       workerType: user.workerType,
       siteId: user.siteId,
+      name: user.name,
+      inviteCode: user.inviteCode
     };
 
     next();

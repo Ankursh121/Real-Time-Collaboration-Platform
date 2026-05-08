@@ -5,9 +5,11 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import WorkerDashboard from './pages/WorkerDashboard';
 import UserRegistration from './pages/UserRegistration';
+import UserManagement from './pages/UserManagement';
 import SiteManagement from './pages/SiteManagement';
 import Attendance from './pages/Attendance';
 import Payment from './pages/Payment';
+import RateManagement from './pages/RateManagement';
 import DashboardLayout from './components/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
@@ -20,6 +22,12 @@ const DashboardRouter = () => {
   if (user.role === 'Owner') return <OwnerDashboard />;
   if (user.role === 'Admin') return <AdminDashboard />;
   return <WorkerDashboard />;
+};
+
+const UserDelegate = () => {
+  const { user } = useAuth();
+  if (user?.role === 'Owner') return <UserManagement />;
+  return <UserRegistration />;
 };
 
 function App() {
@@ -36,13 +44,15 @@ function App() {
           <Route path="/dashboard" element={<DashboardRouter />} />
           
           <Route element={<ProtectedRoute allowedRoles={['Owner', 'Admin']} />}>
-            <Route path="/users" element={<UserRegistration />} />
+            <Route path="/users" element={<UserDelegate />} />
+            <Route path="/onboard" element={<UserRegistration />} />
             <Route path="/attendance" element={<Attendance />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['Owner']} />}>
             <Route path="/sites" element={<SiteManagement />} />
             <Route path="/payments" element={<Payment />} />
+            <Route path="/rates" element={<RateManagement />} />
           </Route>
         </Route>
       </Route>

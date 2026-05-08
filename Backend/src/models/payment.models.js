@@ -65,6 +65,16 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+    
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );

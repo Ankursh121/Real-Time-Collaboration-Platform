@@ -259,7 +259,7 @@ const SiteManagement = () => {
                      animate={{ opacity: 1 }} 
                      exit={{ opacity: 0 }} 
                      onClick={() => setIsAddModalOpen(false)}
-                     className="absolute inset-0 bg-black/90"
+                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                   />
                   <motion.div 
                      initial={{ opacity: 0, scale: 0.95, y: 20 }} 
@@ -326,14 +326,14 @@ const SiteManagement = () => {
                      animate={{ opacity: 1 }} 
                      exit={{ opacity: 0 }} 
                      onClick={() => setSelectedSite(null)}
-                     className="absolute inset-0 bg-black/90"
+                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                   />
                   <motion.div 
                      initial={{ x: "100%" }} 
                      animate={{ x: 0 }} 
                      exit={{ x: "100%" }}
                      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                     className="bg-card w-full max-w-md h-full shadow-2xl border-l border-border flex flex-col relative z-10"
+                     className="bg-card w-full max-w-md h-full shadow-2xl border-l border-border flex flex-col relative z-10 modal-panel"
                   >
                       {/* Header */}
                       <div className="p-6 border-b border-border flex justify-between items-start bg-muted flex-shrink-0">
@@ -413,7 +413,7 @@ const SiteManagement = () => {
                      animate={{ opacity: 1 }} 
                      exit={{ opacity: 0 }} 
                      onClick={() => setIsAssignModalOpen(false)}
-                     className="absolute inset-0 bg-black/90"
+                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                   />
                   <motion.div 
                      initial={{ opacity: 0, scale: 0.95, y: 20 }} 
@@ -521,7 +521,7 @@ const SiteManagement = () => {
                      animate={{ opacity: 1 }} 
                      exit={{ opacity: 0 }} 
                      onClick={() => setDeleteStep(null)}
-                     className="absolute inset-0 bg-black/90"
+                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                   />
                   <motion.div
                       initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -563,7 +563,7 @@ const SiteManagement = () => {
                      animate={{ opacity: 1 }} 
                      exit={{ opacity: 0 }} 
                      onClick={() => setDeleteStep(null)}
-                     className="absolute inset-0 bg-black/90"
+                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                   />
                   <motion.div
                       initial={{ opacity: 0, scale: 0.95, y: 20 }}

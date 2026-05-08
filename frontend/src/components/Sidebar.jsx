@@ -11,7 +11,8 @@ import {
   Menu, 
   X, 
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  IndianRupee
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../utils/cn";
@@ -57,7 +58,9 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         ...common,
         { icon: Users, label: "Manage Roles", path: "/users" },
         { icon: MapPin, label: "Sites", path: "/sites" },
+        { icon: CalendarCheck, label: "Attendance", path: "/attendance" },
         { icon: Wallet, label: "Payments", path: "/payments" },
+        { icon: IndianRupee, label: "Manage Rates", path: "/rates" },
       ];
     }
     

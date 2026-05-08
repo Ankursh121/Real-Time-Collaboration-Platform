@@ -26,7 +26,7 @@ const Login = () => {
     
     setLoading(true);
     try {
-      const res = await API.post("/auth/send-otp", { phone });
+      const res = await API.post("/auth/send-otp", { phone, isRegistration: false });
       if (res.data.success) {
         toast.success("OTP sent successfully");
         setStep(2);

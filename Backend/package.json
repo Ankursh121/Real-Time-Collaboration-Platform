@@ -15,6 +15,7 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
+    "axios-auth-refresh": "^5.0.2",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.8.0",
@@ -22,11 +23,13 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-async-handler": "^1.2.0",
     "joi": "^18.1.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.2",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
+    "pdfkit": "^0.18.0",
     "twilio": "^5.13.1"
   },
   "devDependencies": {

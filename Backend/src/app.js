@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import fs from "fs";
 
 
 dotenv.config();
@@ -15,7 +16,15 @@ app.use(morgan("dev"));
 
 app.use(
   cors({
-    origin: [process.env.CORS_ORIGIN, "http://localhost:5173", "http://localhost:3000"],
+    origin: [
+      process.env.CORS_ORIGIN,
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "http://localhost:8081", // React Native Web
+      "http://localhost:8082", // React Native Web Alternate Port
+      "http://10.0.2.2:8081", // Android Emulator
+      "http://10.2.1.9:8081", // Physical Device Testing
+    ],
     credentials: true,
   })
 );
@@ -34,18 +43,25 @@ import paymentRoutes from "./routes/payment.routes.js";
 import siteRoutes from "./routes/sites.routes.js";
 
 
+import rateRoutes from "./routes/rate.routes.js";
+
 app.use("/api/auth", authRoutes);
 app.use("/api/workers", workerRoutes);
 app.use("/api/owners", ownerRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/sites", siteRoutes);
+app.use("/api/rates", rateRoutes);
 
 
 import ApiError from "./utils/ApiError.js";
 
 // Error middleware
 app.use((err, req, res, next) => {
+  const logMsg = `[${new Date().toISOString()}] ${req.method} ${req.url} - ${err.statusCode || 500} - ${err.message}\n`;
+  console.error("API ERROR:", logMsg);
+  try { fs.appendFileSync("backend_errors.log", logMsg); } catch(e) { console.error("Logger fail", e); }
+
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
       success: err.success,

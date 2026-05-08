@@ -1,6 +1,8 @@
 import User from "../models/users.models.js";
 import Attendance from "../models/attendance.models.js";
 import Payment from "../models/payment.models.js";
+import Rate from "../models/rate.models.js";
+import mongoose from "mongoose";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import ApiError from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -130,25 +132,52 @@ export const getMyPayments = asyncHandler(async (req, res) => {
 });
 
 export const getMyEarningSummary = asyncHandler(async (req, res) => {
-  const payments = await Payment.find({
-    workerId: req.user.userId,
+  const workerId = req.user.userId;
+  const worker = await User.findById(workerId);
+  if (!worker) throw new ApiError(404, "Worker not found");
+
+  const ownerId = worker.ownerId;
+
+  // 1. Get all payments recorded for this worker
+  const payments = await Payment.find({ workerId });
+  const totalPaid = payments.reduce((sum, p) => sum + p.paidAmount, 0);
+
+  // 2. Get all attendance records for this worker
+  const attendanceRecords = await Attendance.find({ workerId });
+
+  // 3. Get relevant rates for this owner/workerType
+  const rates = await Rate.find({ 
+    ownerId, 
+    workerType: worker.workerType,
+    isActive: true 
   });
 
+  // 4. Calculate live earnings
   let totalEarned = 0;
-  let totalPaid = 0;
+  attendanceRecords.forEach(a => {
+      // Find rate for this specific site or global fallback
+      let rate = rates.find(r => r.siteId?.toString() === a.siteId?.toString());
+      if (!rate) {
+          rate = rates.find(r => !r.siteId);
+      }
 
-  payments.forEach((payment) => {
-    totalEarned += payment.totalAmount;
-    totalPaid += payment.paidAmount;
+      if (rate) {
+          const standardHours = 8;
+          const baseWage = a.hoursWorked >= standardHours ? rate.dailyRate : (rate.dailyRate / standardHours) * a.hoursWorked;
+          const otWage = a.overtimeHours * rate.overtimeRatePerHour;
+          totalEarned += (baseWage + otWage);
+      }
   });
 
-  const pendingAmount = totalEarned - totalPaid;
+  const roundedEarned = Math.round(totalEarned);
+  const pendingAmount = roundedEarned - totalPaid;
 
   return res.status(200).json(
     new ApiResponse(200, {
-      totalEarned,
+      totalEarned: roundedEarned,
       totalPaid,
       pendingAmount,
+      daysPresent: attendanceRecords.length
     }, "Earning summary fetched successfully")
   );
 });

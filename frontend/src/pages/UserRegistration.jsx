@@ -8,19 +8,19 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 const UserRegistration = () => {
+  const { user: currentUser, login } = useAuth();
   const [preview, setPreview] = useState(null);
   const [role, setRole] = useState("Worker");
   const [workerType, setWorkerType] = useState("Labour");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(currentUser?.role === "Owner" ? currentUser.inviteCode : "");
   
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -37,7 +37,7 @@ const UserRegistration = () => {
     
     setLoading(true);
     try {
-      const res = await API.post("/auth/send-otp", { phone });
+      const res = await API.post("/auth/send-otp", { phone, isRegistration: true });
       if (res.data.success) {
         toast.success("OTP sent to " + phone);
         setStep(2);
@@ -55,15 +55,30 @@ const UserRegistration = () => {
     
     setLoading(true);
     try {
-      const user = await login(phone, otp, role, workerType === "" ? undefined : workerType, name, inviteCode);
-      
-      if (user) {
-        toast.success(role + " registered successfully!");
-        // We do not reset the form here because we are immediately navigating away.
-        navigate("/dashboard");
+      if (currentUser && (currentUser.role === "Owner" || currentUser.role === "Admin")) {
+          // Onboarding mode - call API directly
+          const res = await API.post("/auth/verify-otp", { 
+              phone, 
+              otp, 
+              role, 
+              workerType: workerType === "" ? undefined : workerType, 
+              name, 
+              inviteCode 
+          });
+          if (res.data.success) {
+            toast.success(role + " onboarded successfully!");
+            // We don't call login() here to avoid overwriting current session
+            navigate("/users");
+          }
+      } else {
+        const user = await login(phone, otp, role, workerType === "" ? undefined : workerType, name, inviteCode);
+        if (user) {
+            toast.success(role + " registered successfully!");
+            navigate("/dashboard");
+        }
       }
     } catch (error) {
-      toast.error(typeof error === 'string' ? error : error?.message || "Registration failed");
+      toast.error(typeof error === 'string' ? error : error?.message || "Action failed");
     } finally {
       setLoading(false);
     }
@@ -241,7 +256,13 @@ const UserRegistration = () => {
                   </div>
 
                   <div className="pt-6 flex justify-end gap-3 border-t border-border mt-8">
-                     <button type="button" className="px-6 py-2 rounded-xl text-sm font-bold border border-border hover:bg-muted transition-colors">Cancel</button>
+                     <button 
+                        type="button" 
+                        onClick={() => navigate(-1)}
+                        className="px-6 py-2 rounded-xl text-sm font-bold border border-border hover:bg-muted transition-colors text-muted-foreground"
+                     >
+                        Cancel
+                     </button>
                      <motion.button 
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -249,7 +270,7 @@ const UserRegistration = () => {
                         type="submit" 
                         className="px-6 py-2 rounded-xl text-sm font-bold bg-primary text-primary-foreground hover:brightness-110 flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                      >
-                        {loading ? <Loader2 className="animate-spin" size={18} /> : "Get OTP"}
+                        {loading ? <Loader2 className="animate-spin" size={18} /> : (step === 1 ? "Get OTP" : "Verify & Register")}
                      </motion.button>
                   </div>
               </motion.div>

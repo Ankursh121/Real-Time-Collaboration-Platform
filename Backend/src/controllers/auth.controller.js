@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { UserRoles, UserStatus } from "../constants/user.constants.js";
 import crypto from "crypto";
 import twilio from "twilio";
+import fs from "fs";
 
 
 const generateAccessToken = (user) => {
@@ -24,23 +25,34 @@ const generateAccessToken = (user) => {
 
 
 export const sendOTP = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  console.log("sendOTP Request Body:", req.body);
+  const { phone: rawPhone, isRegistration } = req.body;
+  const phone = rawPhone?.trim();
 
   if (!phone) {
     throw new ApiError(400, "Phone number is required");
   }
 
-
-  // For development convenience, we'll use a fixed dummy OTP.
-  // When ready for production SMS, switch back to: Math.floor(100000 + Math.random() * 900000).toString();
-  const otp = "123456";
-
-  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
-
   let user = await User.findOne({ phone });
 
+  // Logical Gatekeeping:
+  if (isRegistration) {
+    // We allow registration flow even if user exists. 
+    // It will act as a registration update/re-verification.
+  } else {
+    // Login attempt
+    if (!user) {
+        throw new ApiError(404, `Phone ${phone} not found. Please register first.`);
+    }
+  }
+
+  // Generate OTP
+  const otp = "123456"; // Dummy OTP for development
+  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+
   if (!user) {
-   
+    // Special case for registration: Create a preliminary record to hold the OTP
+    // We only reach here if isRegistration is true and user was null
     user = await User.create({
       phone,
       name: "Temp",
@@ -52,10 +64,10 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
   user.OTP = otp;
   user.OTPExpiresAt = otpExpiry;
-
+  console.log(`Setting OTP for ${phone}: ${otp}`);
   await user.save();
 
-  console.log("OTP:", otp); 
+  console.log(`OTP for ${phone}:`, otp); 
 
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== "placeholder_account_sid") {
     try {
@@ -82,7 +94,8 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
 
 export const verifyOTP = asyncHandler(async (req, res) => {
-  const { phone, otp, name, role, workerType, inviteCode } = req.body;
+  const { phone: rawPhone, otp, name, role, workerType, inviteCode } = req.body;
+  const phone = rawPhone?.trim();
 
   if (!phone || !otp) {
     throw new ApiError(400, "Phone and OTP are required");
@@ -95,7 +108,13 @@ export const verifyOTP = asyncHandler(async (req, res) => {
   }
 
 
-  if (!user.OTP || user.OTP !== otp) {
+  const dbOtp = user.OTP?.toString().trim();
+  const inputOtp = otp?.toString().trim();
+  
+  console.log(`[DEBUG] DB OTP: "${dbOtp}", Input OTP: "${inputOtp}"`);
+  try { fs.appendFileSync("backend_errors.log", `[DEBUG] DB OTP: "${dbOtp}", Input OTP: "${inputOtp}"\n`); } catch(e) {}
+
+  if (!user.OTP || dbOtp !== inputOtp) {
     throw new ApiError(400, "Invalid OTP");
   }
 
@@ -117,17 +136,22 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
   if (user.role === UserRoles.WORKER || user.role === UserRoles.ADMIN) {
       if (inviteCode) {
-        const owner = await User.findOne({ inviteCode, role: UserRoles.OWNER });
+        const normalizedCode = inviteCode.trim().toUpperCase();
+        console.log(`[DEBUG] Looking for owner with code: "${normalizedCode}"`);
+        const owner = await User.findOne({ inviteCode: normalizedCode, role: UserRoles.OWNER });
 
         if (!owner) {
+          console.log(`[DEBUG] Owner not found for code: "${normalizedCode}"`);
+          try { fs.appendFileSync("backend_errors.log", `[DEBUG] Owner not found for code: "${normalizedCode}"\n`); } catch(e) {}
           throw new ApiError(400, "Invalid or expired owner invite code");
         }
 
         user.ownerId = owner._id;
         user.status = UserStatus.ACTIVE;
-      } else {
+      } else if (!user.status || user.status === UserStatus.PENDING) {
           user.status = UserStatus.PENDING;
       }
+      // If user is already ACTIVE, we don't reset them to PENDING when inviteCode is missing (e.g. during login)
   } else if (user.role === UserRoles.OWNER) {
       user.status = UserStatus.ACTIVE;
       if (!user.inviteCode) {
@@ -147,6 +171,9 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     const owner = await User.findById(user.ownerId).select("name");
     if (owner) ownerData = { name: owner.name };
   }
+
+  console.log(`[DEBUG] Verification successful for ${phone}`);
+  try { fs.appendFileSync("backend_errors.log", `[DEBUG] Verification successful for ${phone}\n`); } catch(e) {}
 
   return res
     .status(200)

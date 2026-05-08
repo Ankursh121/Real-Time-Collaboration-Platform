@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema(
             type : String,
             required : true,
             unique : true,
+            trim: true,
         },
 
         photo : {
@@ -75,6 +76,7 @@ const userSchema = new mongoose.Schema(
             type: String,
             unique: true,
             sparse: true, // allows multiple null values
+            trim: true,
         },    
 
         OTP : {
