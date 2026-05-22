@@ -7,6 +7,8 @@ import { UserRoles, UserStatus } from "../constants/user.constants.js";
 import crypto from "crypto";
 import twilio from "twilio";
 import fs from "fs";
+import { verifyFirebaseToken } from "../configs/firebase.js";
+import { uploadOnCloudinary, DeleteOnCloudinary } from "../utils/Cloudinary.js";
 
 
 const generateAccessToken = (user) => {
@@ -36,7 +38,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
   let user = await User.findOne({ phone });
 
   // Logical Gatekeeping:
-  if (isRegistration) {
+  if (isRegistration !== false) {
     // We allow registration flow even if user exists. 
     // It will act as a registration update/re-verification.
   } else {
@@ -94,71 +96,146 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
 
 export const verifyOTP = asyncHandler(async (req, res) => {
-  const { phone: rawPhone, otp, name, role, workerType, inviteCode } = req.body;
-  const phone = rawPhone?.trim();
+  const { phone: rawPhone, otp, firebaseToken, name, role, workerType, inviteCode } = req.body;
+  let phone = rawPhone?.trim();
 
-  if (!phone || !otp) {
-    throw new ApiError(400, "Phone and OTP are required");
-  }
+  let user;
 
-  const user = await User.findOne({ phone }).select("+OTP");
+  if (firebaseToken) {
+    // Google Sign-In verification flow
+    const decodedClaims = await verifyFirebaseToken(firebaseToken);
+    const { email, firebaseUid, name: decodedName } = decodedClaims;
 
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
+    // Check if user exists by firebaseUid or email
+    user = await User.findOne({ $or: [{ firebaseUid }, { email }] });
 
-
-  const dbOtp = user.OTP?.toString().trim();
-  const inputOtp = otp?.toString().trim();
-  
-  console.log(`[DEBUG] DB OTP: "${dbOtp}", Input OTP: "${inputOtp}"`);
-  try { fs.appendFileSync("backend_errors.log", `[DEBUG] DB OTP: "${dbOtp}", Input OTP: "${inputOtp}"\n`); } catch(e) {}
-
-  if (!user.OTP || dbOtp !== inputOtp) {
-    throw new ApiError(400, "Invalid OTP");
-  }
-
-  if (user.OTPExpiresAt < new Date()) {
-    throw new ApiError(400, "OTP expired");
-  }
-
-  if (name) user.name = name;
-  if (role) {
-      if (!Object.values(UserRoles).includes(role)) {
-          throw new ApiError(400, "Invalid role");
-      }
-      user.role = role;
-  }
-  if (workerType) {
-      user.workerType = workerType;
-  }
-
-
-  if (user.role === UserRoles.WORKER || user.role === UserRoles.ADMIN) {
-      if (inviteCode) {
-        const normalizedCode = inviteCode.trim().toUpperCase();
-        console.log(`[DEBUG] Looking for owner with code: "${normalizedCode}"`);
-        const owner = await User.findOne({ inviteCode: normalizedCode, role: UserRoles.OWNER });
-
-        if (!owner) {
-          console.log(`[DEBUG] Owner not found for code: "${normalizedCode}"`);
-          try { fs.appendFileSync("backend_errors.log", `[DEBUG] Owner not found for code: "${normalizedCode}"\n`); } catch(e) {}
-          throw new ApiError(400, "Invalid or expired owner invite code");
+    if (!user) {
+      // User is not in DB. Check if this is a registration request.
+      // If role is present, proceed to register the user.
+      if (role) {
+        if (!phone) {
+          throw new ApiError(400, "Phone number is required for registration");
         }
 
-        user.ownerId = owner._id;
-        user.status = UserStatus.ACTIVE;
-      } else if (!user.status || user.status === UserStatus.PENDING) {
-          user.status = UserStatus.PENDING;
+        // Check if role is valid
+        if (!Object.values(UserRoles).includes(role)) {
+          throw new ApiError(400, "Invalid role");
+        }
+
+        // Check if phone number is already registered
+        const existingUserByPhone = await User.findOne({ phone });
+        if (existingUserByPhone) {
+          if (!existingUserByPhone.firebaseUid) {
+            // Link existing user to this Google account
+            existingUserByPhone.firebaseUid = firebaseUid;
+            existingUserByPhone.email = email;
+            if (name) existingUserByPhone.name = name;
+            existingUserByPhone.role = role;
+            existingUserByPhone.workerType = (workerType && workerType.trim() !== "") ? workerType.trim() : undefined;
+            existingUserByPhone.status = role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING;
+            user = existingUserByPhone;
+          } else {
+            throw new ApiError(409, "This phone number is already registered with another Google account");
+          }
+        } else {
+          user = await User.create({
+            phone,
+            name: name || decodedName || email.split("@")[0],
+            email,
+            firebaseUid,
+            role,
+            workerType: (workerType && workerType.trim() !== "") ? workerType.trim() : undefined,
+            gender: "Others", // default gender since DB schema requires it
+            status: role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING,
+          });
+        }
+      } else {
+        // Not a registration request (just a login attempt). Return 404.
+        throw new ApiError(404, "User not found. Please register first.");
       }
-      // If user is already ACTIVE, we don't reset them to PENDING when inviteCode is missing (e.g. during login)
-  } else if (user.role === UserRoles.OWNER) {
-      user.status = UserStatus.ACTIVE;
-      if (!user.inviteCode) {
-          user.inviteCode = crypto.randomBytes(3).toString("hex").toUpperCase();
+    } else {
+      // User exists. Update email and firebaseUid if they were missing (backward compatibility / linking)
+      let needsSave = false;
+      if (!user.firebaseUid) {
+        user.firebaseUid = firebaseUid;
+        needsSave = true;
       }
+      if (!user.email) {
+        user.email = email;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await user.save();
+      }
+    }
+  } else {
+    // Legacy/Mock OTP verification flow (for backend automated tests)
+    if (!phone || !otp) {
+      throw new ApiError(400, "Phone and OTP are required");
+    }
+
+    user = await User.findOne({ phone }).select("+OTP");
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const dbOtp = user.OTP?.toString().trim();
+    const inputOtp = otp?.toString().trim();
+    
+    console.log(`[DEBUG] DB OTP: "${dbOtp}", Input OTP: "${inputOtp}"`);
+    try { fs.appendFileSync("backend_errors.log", `[DEBUG] DB OTP: "${dbOtp}", Input OTP: "${inputOtp}"\n`); } catch(e) {}
+
+    if (!user.OTP || dbOtp !== inputOtp) {
+      throw new ApiError(400, "Invalid OTP");
+    }
+
+    if (user.OTPExpiresAt < new Date()) {
+      throw new ApiError(400, "OTP expired");
+    }
+
+    // Set name, role, workerType if provided during registration
+    if (name) user.name = name;
+    if (role) {
+      if (!Object.values(UserRoles).includes(role)) {
+        throw new ApiError(400, "Invalid role");
+      }
+      user.role = role;
+    }
+    if (workerType && workerType.trim() !== "") {
+      user.workerType = workerType.trim();
+    }
   }
 
+  // Handle owner linkage and invite code for both Google Login and legacy OTP login
+  // Note: Only run this if we are doing a registration flow or setting invite codes
+  if (role) {
+    if (user.role === UserRoles.WORKER || user.role === UserRoles.ADMIN) {
+        if (inviteCode) {
+          const normalizedCode = inviteCode.trim().toUpperCase();
+          console.log(`[DEBUG] Looking for owner with code: "${normalizedCode}"`);
+          const owner = await User.findOne({ inviteCode: normalizedCode, role: UserRoles.OWNER });
+
+          if (!owner) {
+            console.log(`[DEBUG] Owner not found for code: "${normalizedCode}"`);
+            try { fs.appendFileSync("backend_errors.log", `[DEBUG] Owner not found for code: "${normalizedCode}"\n`); } catch(e) {}
+            throw new ApiError(400, "Invalid or expired owner invite code");
+          }
+
+          user.ownerId = owner._id;
+          user.status = UserStatus.ACTIVE;
+        } else if (!user.status || user.status === UserStatus.PENDING) {
+            user.status = UserStatus.PENDING;
+        }
+    } else if (user.role === UserRoles.OWNER) {
+        user.status = UserStatus.ACTIVE;
+        if (!user.inviteCode) {
+            user.inviteCode = crypto.randomBytes(3).toString("hex").toUpperCase();
+        }
+    }
+  }
+
+  // Clear OTP fields
   user.OTP = undefined;
   user.OTPExpiresAt = undefined;
 
@@ -172,8 +249,8 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     if (owner) ownerData = { name: owner.name };
   }
 
-  console.log(`[DEBUG] Verification successful for ${phone}`);
-  try { fs.appendFileSync("backend_errors.log", `[DEBUG] Verification successful for ${phone}\n`); } catch(e) {}
+  console.log(`[DEBUG] Verification successful for user: ${user.phone}`);
+  try { fs.appendFileSync("backend_errors.log", `[DEBUG] Verification successful for user: ${user.phone}\n`); } catch(e) {}
 
   return res
     .status(200)
@@ -225,4 +302,39 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, formattedUser, "User fetched successfully"));
+});
+
+export const updateProfilePhoto = asyncHandler(async (req, res) => {
+  const photoLocalPath = req.file?.path;
+  if (!photoLocalPath) {
+    throw new ApiError(400, "Photo file is required");
+  }
+
+  const user = await User.findById(req.user.userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Delete previous photo if it exists on Cloudinary
+  if (user.photo) {
+    await DeleteOnCloudinary(user.photo);
+  }
+
+  const photoUpload = await uploadOnCloudinary(photoLocalPath);
+  if (!photoUpload) {
+    throw new ApiError(500, "Photo upload failed");
+  }
+
+  user.photo = photoUpload.url;
+  await user.save();
+
+  const updatedUser = await User.findById(req.user.userId).select("-password -OTP");
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      updatedUser,
+      "Profile photo updated successfully"
+    )
+  );
 });

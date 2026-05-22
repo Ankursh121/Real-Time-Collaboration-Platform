@@ -1,0 +1,20 @@
+Firebase Authentication for OTP stuffs
+Mongodb database
+Razorpay Payment Integration 
+
+Run Command -
+Backend : npm run dev
+Frontend : npm start
+
+DLT registration cost is 5900/- for year and cheapest website for otp sending is Fast2sms
+this will be done  only when I get many users and also good funds 
+
+1111111111 is of Admin 
+2222222222 is of labour 
+3333333333 is of Mistri
+9235787767 is of owner
+
+
+
+
+

@@ -72,6 +72,21 @@ const userSchema = new mongoose.Schema(
             select : false
         },
 
+        email: {
+            type: String,
+            unique: true,
+            sparse: true,
+            trim: true,
+            lowercase: true,
+        },
+
+        firebaseUid: {
+            type: String,
+            unique: true,
+            sparse: true,
+            trim: true,
+        },
+
         inviteCode: {
             type: String,
             unique: true,

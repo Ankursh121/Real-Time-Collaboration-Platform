@@ -11,11 +11,15 @@ import {
   Modal,
   TextInput,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import API from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
-import { COLORS, RADIUS, SHADOW } from "../theme/colors";
+import { COLORS, RADIUS } from "../theme/colors";
+import ScreenWrapper from "../components/ScreenWrapper";
+import GlassCard from "../components/GlassCard";
+import Loader from "../components/Loader";
+import FuturisticButton from "../components/FuturisticButton";
+import StatusBadge from "../components/StatusBadge";
 
 export default function SiteManagementScreen({ navigation }) {
   const { user } = useAuth();
@@ -68,20 +72,21 @@ export default function SiteManagementScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <ScreenWrapper style={styles.loaderContainer}>
+        <Loader message="Querying Active Workspaces..." />
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <ScreenWrapper>
       <View style={styles.header}>
         <Text style={styles.pageTitle}>Managed Sites</Text>
         {user?.role === "Owner" && (
           <TouchableOpacity 
             style={styles.addBtn}
             onPress={() => setSiteModalVisible(true)}
+            activeOpacity={0.8}
           >
             <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
@@ -95,31 +100,32 @@ export default function SiteManagementScreen({ navigation }) {
             return (
               <TouchableOpacity 
                 key={i} 
-                style={styles.siteCard} 
-                activeOpacity={0.7}
+                activeOpacity={0.8}
                 onPress={() => navigation.navigate("SiteDetails", { siteId: site._id, siteName: site.name })}
               >
-                <View style={styles.siteInfo}>
-                  <View>
-                    <Text style={styles.siteName}>{site.name}</Text>
-                    <Text style={styles.siteMeta}>Location Tracking Active</Text>
+                <GlassCard level={2} style={styles.siteCard}>
+                  <View style={styles.siteInfo}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.siteName}>{site.name}</Text>
+                      <Text style={styles.siteMeta}>Location Tracking Active</Text>
+                    </View>
+                    <StatusBadge color={COLORS.blue} bgColor={COLORS.blueLight}>
+                      {site.workerCount} Workers
+                    </StatusBadge>
                   </View>
-                  <View style={styles.siteCountBadge}>
-                    <Text style={styles.siteCountText}>{site.workerCount} Workers</Text>
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${pct}%` }]} />
+                    </View>
+                    <Text style={styles.pctText}>{Math.round(pct)}% of workforce</Text>
                   </View>
-                </View>
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${pct}%` }]} />
-                  </View>
-                  <Text style={styles.pctText}>{Math.round(pct)}% of workforce</Text>
-                </View>
+                </GlassCard>
               </TouchableOpacity>
             );
           })
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="business-outline" size={64} color={COLORS.mutedForeground + "40"} />
+            <Ionicons name="business-outline" size={64} color="rgba(255, 255, 255, 0.15)" />
             <Text style={styles.emptyText}>No active sites found. Create one to start tracking.</Text>
           </View>
         )}
@@ -137,7 +143,7 @@ export default function SiteManagementScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Construction Site</Text>
               <TouchableOpacity onPress={() => setSiteModalVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.mutedForeground} />
+                <Ionicons name="close-circle" size={32} color={COLORS.mutedForeground} />
               </TouchableOpacity>
             </View>
 
@@ -170,57 +176,61 @@ export default function SiteManagementScreen({ navigation }) {
                 onChangeText={(v) => setNewSite({ ...newSite, description: v })}
               />
 
-              <TouchableOpacity
-                style={[styles.modalSubmitBtn, creatingSite && { opacity: 0.7 }]}
+              <FuturisticButton
+                variant="primary"
                 onPress={handleCreateSite}
-                disabled={creatingSite}
+                loading={creatingSite}
+                icon={<Ionicons name="business" size={18} color="#fff" />}
+                style={styles.modalSubmitBtn}
               >
-                {creatingSite ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Text style={styles.modalSubmitText}>Establish Site</Text>
-                    <Ionicons name="business" size={18} color="#fff" />
-                  </>
-                )}
-              </TouchableOpacity>
+                Establish Site
+              </FuturisticButton>
             </View>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   header: { 
     flexDirection: "row", 
     justifyContent: "space-between", 
     alignItems: "center", 
     padding: 24,
-    paddingBottom: 16
+    paddingBottom: 16,
+    paddingTop: Platform.OS === "ios" ? 16 : 24,
   },
   pageTitle: { color: COLORS.foreground, fontSize: 28, fontWeight: "900", letterSpacing: -1 },
   addBtn: {
     backgroundColor: COLORS.primary,
     width: 44,
     height: 44,
-    borderRadius: RADIUS.full,
+    borderRadius: RADIUS.lg,
     alignItems: "center",
     justifyContent: "center",
-    ...SHADOW.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
-  scroll: { padding: 16, paddingBottom: 100 },
+  scroll: { padding: 24, paddingBottom: 110 },
   siteCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xxl,
-    padding: 20,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOW.card,
+    padding: 0,
   },
   siteInfo: {
     flexDirection: "row",
@@ -228,19 +238,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 16,
   },
-  siteName: { color: COLORS.foreground, fontSize: 18, fontWeight: "800" },
-  siteMeta: { color: COLORS.mutedForeground, fontSize: 12, marginTop: 2 },
-  siteCountBadge: {
-    backgroundColor: COLORS.blueLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-  },
-  siteCountText: { color: COLORS.blue, fontSize: 11, fontWeight: "800" },
-  progressContainer: { gap: 10 },
+  siteName: { color: COLORS.foreground, fontSize: 18, fontWeight: "900", letterSpacing: -0.5 },
+  siteMeta: { color: COLORS.mutedForeground, fontSize: 12, marginTop: 2, fontWeight: "500" },
+  progressContainer: { gap: 8 },
   progressTrack: {
-    height: 8,
-    backgroundColor: COLORS.muted,
+    height: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderRadius: RADIUS.full,
     overflow: "hidden",
   },
@@ -249,39 +252,35 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.full,
   },
-  pctText: { color: COLORS.mutedForeground, fontSize: 11, fontWeight: "600", textAlign: "right" },
+  pctText: { color: COLORS.mutedForeground, fontSize: 11, fontWeight: "700", textAlign: "right" },
   emptyState: { padding: 60, alignItems: "center", gap: 20 },
-  emptyText: { color: COLORS.mutedForeground, fontSize: 15, textAlign: "center", lineHeight: 22 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  emptyText: { color: COLORS.mutedForeground, fontSize: 15, textAlign: "center", lineHeight: 22, fontWeight: "600" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
   modalContent: {
-    backgroundColor: COLORS.background,
+    backgroundColor: "#0f0f14",
     borderTopLeftRadius: RADIUS.xxxl,
     borderTopRightRadius: RADIUS.xxxl,
     padding: 24,
     paddingBottom: Platform.OS === "ios" ? 40 : 24,
+    borderTopWidth: 1.5,
+    borderColor: "rgba(124, 111, 247, 0.3)",
   },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  modalTitle: { color: COLORS.foreground, fontSize: 20, fontWeight: "900" },
+  modalTitle: { color: COLORS.foreground, fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
   form: { gap: 16 },
-  inputLabel: { color: COLORS.accentForeground, fontSize: 12, fontWeight: "700", marginBottom: -8 },
+  inputLabel: { color: COLORS.accentForeground, fontSize: 11, fontWeight: "800", marginBottom: -8, letterSpacing: 1, textTransform: "uppercase" },
   modalInput: {
-    backgroundColor: COLORS.card,
+    backgroundColor: "rgba(26, 26, 36, 0.6)",
+    borderWidth: 1.5,
+    borderColor: "rgba(42, 42, 56, 1)",
     borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     padding: 14,
     color: COLORS.foreground,
     fontSize: 15,
+    fontWeight: "600",
   },
   modalSubmitBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
     marginTop: 8,
+    width: "100%",
   },
-  modalSubmitText: { color: "#fff", fontSize: 16, fontWeight: "800" },
 });

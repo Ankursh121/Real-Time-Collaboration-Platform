@@ -10,12 +10,18 @@ import {
   Alert,
   Modal,
   FlatList,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import API from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
-import { COLORS, RADIUS, SHADOW } from "../theme/colors";
+import { COLORS, RADIUS } from "../theme/colors";
+import ScreenWrapper from "../components/ScreenWrapper";
+import GlassCard from "../components/GlassCard";
+import Loader from "../components/Loader";
+import FuturisticButton from "../components/FuturisticButton";
+import GlowingInput from "../components/GlowingInput";
+import StatusBadge from "../components/StatusBadge";
 
 export default function AttendanceScreen() {
   const { user } = useAuth();
@@ -148,7 +154,7 @@ export default function AttendanceScreen() {
 
   if (user?.role === 'Worker') {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <ScreenWrapper>
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>My Attendance</Text>
@@ -157,9 +163,8 @@ export default function AttendanceScreen() {
         </View>
 
         {fetchingHistory ? (
-          <View style={styles.loader}>
-            <ActivityIndicator color={COLORS.primary} size="large" />
-            <Text style={styles.loaderText}>Loading History...</Text>
+          <View style={styles.loaderContainer}>
+            <Loader message="Loading History..." />
           </View>
         ) : (
           <View style={{ flex: 1, padding: 16 }}>
@@ -182,7 +187,7 @@ export default function AttendanceScreen() {
             </View>
 
             {viewType === "calendar" ? (
-              <View style={[styles.customCalendarContainer, { backgroundColor: COLORS.card, padding: 16, borderRadius: RADIUS.xl }]}>
+              <GlassCard level={2} style={styles.customCalendarCard}>
                 {/* Month Year Header */}
                 <View style={styles.calendarHeader}>
                   <TouchableOpacity onPress={() => {
@@ -228,13 +233,13 @@ export default function AttendanceScreen() {
                         {item && (
                           <View style={[
                             styles.dayCircle, 
-                            item.hasAttendance && { backgroundColor: COLORS.green + '20' },
-                            item.isToday && { borderColor: COLORS.primary, borderWidth: 1 }
+                            item.hasAttendance && { backgroundColor: "rgba(34, 197, 94, 0.15)", borderColor: COLORS.green, borderWidth: 1 },
+                            item.isToday && { borderColor: COLORS.primary, borderWidth: 1.5 }
                           ]}>
                             <Text style={[
                               styles.dayText,
                               item.hasAttendance && { color: COLORS.green, fontWeight: '800' },
-                              item.isToday && { color: COLORS.primary }
+                              item.isToday && { color: COLORS.primary, fontWeight: '800' }
                             ]}>
                               {item.day}
                             </Text>
@@ -250,99 +255,92 @@ export default function AttendanceScreen() {
                     <Text style={styles.legendText}>Present</Text>
                   </View>
                 </View>
-              </View>
+              </GlassCard>
             ) : (
               <FlatList
                 data={historyLogs.sort((a, b) => new Date(b.date) - new Date(a.date))}
                 keyExtractor={(item) => item._id}
-                contentContainerStyle={{ gap: 10 }}
+                contentContainerStyle={{ gap: 12 }}
                 renderItem={({ item }) => (
-                  <View style={[styles.workerCard, { flexDirection: 'row', justifyContent: 'space-between' }]}>
-                    <View>
-                      <Text style={styles.workerName}>{new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</Text>
-                      <Text style={styles.workerMeta}>{item.siteId?.name || 'On-Site'}</Text>
+                  <GlassCard level={2} style={styles.workerListItemCard}>
+                    <View style={styles.workerListText}>
+                      <Text style={styles.workerListItemName}>
+                        {new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </Text>
+                      <Text style={styles.workerListItemMeta}>{item.siteId?.name || 'On-Site'}</Text>
                     </View>
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countText}>{item.hoursWorked} Hrs</Text>
-                    </View>
-                  </View>
+                    <StatusBadge color={COLORS.green} bgColor={COLORS.greenLight}>
+                      {item.hoursWorked} Hrs
+                    </StatusBadge>
+                  </GlassCard>
                 )}
                 ListEmptyComponent={<Text style={styles.emptyText}>No attendance history found.</Text>}
               />
             )}
           </View>
         )}
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loaderText}>Synchronizing Workforce...</Text>
-      </View>
+      <ScreenWrapper style={styles.loaderContainer}>
+        <Loader message="Synchronizing Workforce..." />
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Attendance Protocol</Text>
-          <Text style={styles.subtitle}>
-            Site:{" "}
-            <Text style={styles.bold}>{activeSite?.name || "Select a site"}</Text>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={styles.title}>Attendance protocol</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            Site: <Text style={styles.bold}>{activeSite?.name || "Select a site"}</Text>
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+        <FuturisticButton
           onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.8}
+          loading={saving}
+          icon={<Ionicons name="save-outline" size={18} color="#fff" />}
+          style={styles.saveBtn}
         >
-          {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={styles.saveBtnText}>Submit</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          Submit
+        </FuturisticButton>
       </View>
 
       {/* Site Pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.sitePills}
-        contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-      >
-        {sites.map((site) => {
-          const isActive = site._id === selectedSiteId;
-          return (
-            <TouchableOpacity
-              key={site._id}
-              style={[styles.sitePill, isActive && styles.sitePillActive]}
-              onPress={() => setSelectedSiteId(site._id)}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[styles.sitePillText, isActive && styles.sitePillTextActive]}
+      <View style={{ height: 60 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.sitePills}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 10 }}
+        >
+          {sites.map((site) => {
+            const isActive = site._id === selectedSiteId;
+            return (
+              <TouchableOpacity
+                key={site._id}
+                style={[styles.sitePill, isActive && styles.sitePillActive]}
+                onPress={() => setSelectedSiteId(site._id)}
+                activeOpacity={0.8}
               >
-                {site.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+                <Text style={[styles.sitePillText, isActive && styles.sitePillTextActive]}>
+                  {site.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Search + Stats Bar */}
       <View style={styles.searchBar}>
-        <View style={styles.searchInput}>
-          <Ionicons name="search" size={18} color={COLORS.mutedForeground} />
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={18} color={COLORS.mutedForeground} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchText}
             placeholder="Search workers..."
@@ -351,10 +349,9 @@ export default function AttendanceScreen() {
             onChangeText={setSearchTerm}
           />
         </View>
-        <View style={styles.countBadge}>
-          <Ionicons name="checkmark-circle" size={14} color={COLORS.green} />
-          <Text style={styles.countText}>{presentCount} Present</Text>
-        </View>
+        <StatusBadge color={COLORS.green} bgColor={COLORS.greenLight}>
+          {presentCount} Present
+        </StatusBadge>
       </View>
 
       {/* Worker List */}
@@ -362,33 +359,26 @@ export default function AttendanceScreen() {
         <View style={styles.emptyState}>
           <Ionicons name="people-outline" size={48} color={COLORS.mutedForeground} />
           <Text style={styles.emptyTitle}>No Workers Found</Text>
-          <Text style={styles.emptyDesc}>Adjust site selection or search.</Text>
+          <Text style={styles.emptyDesc}>Adjust site selection or search query.</Text>
         </View>
       ) : (
         <FlatList
           data={filteredWorkers}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 100 }}
+          contentContainerStyle={{ padding: 24, gap: 14, paddingBottom: 110 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item: worker }) => {
             const d = attendanceData[worker._id] || { present: false, overtime: 0 };
             return (
-              <View
-                style={[styles.workerCard, d.present && styles.workerCardActive]}
-              >
+              <GlassCard level={d.present ? 2 : 1} style={[styles.workerCard, d.present && styles.workerCardActive]}>
                 <View style={styles.workerRowParent}>
                   <TouchableOpacity 
                     style={styles.workerRow} 
                     onPress={() => openHistory(worker)}
                     activeOpacity={0.7}
                   >
-                    <View
-                      style={[
-                        styles.avatar,
-                        { backgroundColor: d.present ? COLORS.primary : COLORS.muted },
-                      ]}
-                    >
-                      <Text style={styles.avatarText}>{worker.name[0]}</Text>
+                    <View style={[styles.avatar, { backgroundColor: d.present ? COLORS.primary : "rgba(255, 255, 255, 0.08)" }]}>
+                      <Text style={styles.avatarText}>{worker.name[0].toUpperCase()}</Text>
                     </View>
                     <View style={styles.workerInfo}>
                       <Text style={styles.workerName}>{worker.name}</Text>
@@ -398,16 +388,13 @@ export default function AttendanceScreen() {
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[
-                      styles.toggleBtn,
-                      d.present ? styles.toggleBtnPresent : styles.toggleBtnAbsent,
-                    ]}
+                    style={[styles.toggleBtn, d.present ? styles.toggleBtnPresent : styles.toggleBtnAbsent]}
                     onPress={() => toggleAttendance(worker._id)}
                     activeOpacity={0.8}
                   >
                     <Ionicons
                       name={d.present ? "checkmark-circle" : "ellipse-outline"}
-                      size={22}
+                      size={24}
                       color={d.present ? "#fff" : COLORS.mutedForeground}
                     />
                   </TouchableOpacity>
@@ -415,7 +402,7 @@ export default function AttendanceScreen() {
 
                 {d.present && (
                   <View style={styles.overtimeRow}>
-                    <Ionicons name="time-outline" size={14} color={COLORS.mutedForeground} />
+                    <Ionicons name="time-outline" size={16} color={COLORS.primary} />
                     <Text style={styles.overtimeLabel}>Overtime Hrs:</Text>
                     <TextInput
                       style={styles.overtimeInput}
@@ -438,7 +425,7 @@ export default function AttendanceScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
+              </GlassCard>
             );
           }}
         />
@@ -456,22 +443,21 @@ export default function AttendanceScreen() {
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleRow}>
                 <View style={styles.modalAvatar}>
-                  <Text style={styles.avatarText}>{historyWorker?.name?.[0]}</Text>
+                  <Text style={styles.avatarText}>{(historyWorker?.name?.[0] || "").toUpperCase()}</Text>
                 </View>
                 <View>
                   <Text style={styles.modalTitle}>{historyWorker?.name}</Text>
-                  <Text style={styles.modalSub}>Attendance Archive • Past 30 Days</Text>
+                  <Text style={styles.modalSub}>Past 30 Days Records</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={() => setHistoryModal(false)}>
-                <Ionicons name="close-circle" size={28} color={COLORS.mutedForeground} />
+                <Ionicons name="close-circle" size={32} color={COLORS.mutedForeground} />
               </TouchableOpacity>
             </View>
 
             {fetchingHistory ? (
               <View style={styles.modalLoader}>
-                <ActivityIndicator color={COLORS.primary} size="large" />
-                <Text style={styles.loaderText}>Processing Archives...</Text>
+                <Loader message="Fetching Archives..." />
               </View>
             ) : (
               <View style={{ flex: 1 }}>
@@ -546,8 +532,8 @@ export default function AttendanceScreen() {
                             {item && (
                               <View style={[
                                 styles.dayCircle, 
-                                item.hasAttendance && { backgroundColor: COLORS.green + '20' },
-                                item.isToday && { borderColor: COLORS.primary, borderWidth: 1 }
+                                item.hasAttendance && { backgroundColor: "rgba(34, 197, 94, 0.12)", borderColor: COLORS.green, borderWidth: 1 },
+                                item.isToday && { borderColor: COLORS.primary, borderWidth: 1.5 }
                               ]}>
                                 <Text style={[
                                   styles.dayText,
@@ -624,25 +610,15 @@ export default function AttendanceScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  loader: {
+  loaderContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
     justifyContent: "center",
-  },
-  loaderText: {
-    color: COLORS.mutedForeground,
-    marginTop: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    fontSize: 11,
+    alignItems: "center",
   },
   header: {
     flexDirection: "row",
@@ -650,6 +626,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
     paddingBottom: 12,
+    paddingTop: Platform.OS === "ios" ? 16 : 24,
   },
   title: {
     color: COLORS.foreground,
@@ -658,33 +635,27 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   subtitle: { color: COLORS.mutedForeground, fontSize: 13, marginTop: 2 },
-  bold: { color: COLORS.foreground, fontWeight: "700" },
+  bold: { color: COLORS.foreground, fontWeight: "800" },
   saveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: RADIUS.lg,
-    ...SHADOW.primary,
+    paddingHorizontal: 16,
   },
-  saveBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   sitePills: { paddingVertical: 8 },
   sitePill: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(26, 26, 36, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   sitePillActive: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary,
-    ...SHADOW.primary,
   },
-  sitePillText: { color: COLORS.mutedForeground, fontWeight: "700", fontSize: 13 },
+  sitePillText: { color: COLORS.mutedForeground, fontWeight: "800", fontSize: 13 },
   sitePillTextActive: { color: "#fff" },
   searchBar: {
     flexDirection: "row",
@@ -693,47 +664,31 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 12,
   },
-  searchInput: {
+  searchInputContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: COLORS.card,
+    backgroundColor: "rgba(26, 26, 36, 0.6)",
     borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: "rgba(42, 42, 56, 1)",
     paddingHorizontal: 14,
-    height: 44,
+    height: 48,
   },
-  searchText: { flex: 1, color: COLORS.foreground, fontSize: 14 },
-  countBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: COLORS.greenLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.lg,
-  },
-  countText: { color: COLORS.green, fontWeight: "800", fontSize: 12 },
-  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  searchText: { flex: 1, color: COLORS.foreground, fontSize: 14, fontWeight: "600" },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 64 },
   emptyTitle: {
     color: COLORS.foreground,
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   emptyDesc: { color: COLORS.mutedForeground, fontSize: 13 },
   workerCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    ...SHADOW.card,
+    padding: 0,
   },
   workerCardActive: {
-    borderColor: COLORS.primary + "60",
-    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+    backgroundColor: "rgba(124, 111, 247, 0.06)",
   },
   workerRowParent: {
     flexDirection: "row",
@@ -775,58 +730,62 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   toggleBtnPresent: {
     backgroundColor: COLORS.green,
     borderColor: COLORS.green,
   },
   toggleBtnAbsent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: "rgba(26, 26, 36, 0.4)",
   },
   overtimeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 14,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
   },
   overtimeLabel: {
     color: COLORS.mutedForeground,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   overtimeInput: {
-    backgroundColor: COLORS.muted,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
     borderRadius: RADIUS.md,
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     color: COLORS.foreground,
     fontWeight: "800",
     fontSize: 14,
     width: 60,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   historyBtn: {
     marginLeft: "auto",
-    padding: 6,
-    backgroundColor: COLORS.primaryLight,
+    padding: 8,
+    backgroundColor: "rgba(124, 111, 247, 0.15)",
+    borderColor: "rgba(124, 111, 247, 0.3)",
+    borderWidth: 1,
     borderRadius: RADIUS.md,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: COLORS.card,
+    backgroundColor: "#0f0f14",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: "80%",
-    borderTopWidth: 1,
-    borderColor: COLORS.border,
+    maxHeight: "85%",
+    borderTopWidth: 1.5,
+    borderColor: "rgba(124, 111, 247, 0.3)",
   },
   modalHeader: {
     flexDirection: "row",
@@ -834,53 +793,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
   },
   modalTitleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   modalAvatar: {
     width: 44,
     height: 44,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   modalTitle: { color: COLORS.foreground, fontSize: 18, fontWeight: "900" },
   modalSub: {
-    color: COLORS.mutedForeground,
+    color: COLORS.primary,
     fontSize: 11,
+    fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   modalLoader: {
-    height: 200,
+    height: 250,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
   },
   logRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: COLORS.muted,
+    backgroundColor: "rgba(26, 26, 36, 0.6)",
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
     borderRadius: RADIUS.lg,
     padding: 14,
+    marginBottom: 10,
   },
   logIconBox: {
     width: 40,
     height: 40,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   logDate: { color: COLORS.foreground, fontWeight: "800", fontSize: 14 },
   logSite: { color: COLORS.mutedForeground, fontSize: 11, marginTop: 2 },
-  logPresent: { color: COLORS.green, fontWeight: "800", fontSize: 13 },
+  logPresent: { color: COLORS.green, fontWeight: "800", fontSize: 14 },
   logOvertime: {
     color: COLORS.orange,
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
     marginTop: 2,
   },
   viewSwitcher: {
@@ -888,7 +850,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
   },
   switchBtn: {
     flex: 1,
@@ -896,13 +858,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.muted,
+    backgroundColor: "rgba(26, 26, 36, 0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
   },
   switchBtnActive: {
     backgroundColor: COLORS.primary,
-    ...SHADOW.primary,
+    borderColor: COLORS.primary,
   },
   switchText: {
     fontSize: 13,
@@ -916,21 +880,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 20,
-    marginTop: 20,
-    paddingTop: 20,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { color: COLORS.mutedForeground, fontSize: 12, fontWeight: "700" },
+  legendText: { color: COLORS.mutedForeground, fontSize: 12, fontWeight: "800" },
   logRowPayment: {
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primary,
   },
-  customCalendarContainer: {
-    padding: 16,
-    backgroundColor: COLORS.card,
+  customCalendarCard: {
+    padding: 0,
   },
   calendarHeader: {
     flexDirection: "row",
@@ -970,13 +933,13 @@ const styles = StyleSheet.create({
   dayCircle: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: RADIUS.md,
     alignItems: "center",
     justifyContent: "center",
   },
   dayText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: COLORS.foreground,
   },
   dotContainer: {
@@ -989,5 +952,27 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
+  },
+  customCalendarContainer: {
+    padding: 18,
+  },
+  workerListItemCard: {
+    padding: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  workerListText: {
+    flex: 1,
+  },
+  workerListItemName: {
+    color: COLORS.foreground,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  workerListItemMeta: {
+    color: COLORS.mutedForeground,
+    fontSize: 12,
+    marginTop: 2,
   },
 });

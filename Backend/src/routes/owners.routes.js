@@ -16,6 +16,8 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { isOwner, isAdminOrOwner } from "../middlewares/role.middleware.js";
 
+import { checkWorkerLimit } from "../middlewares/subscription.middleware.js";
+
 const router = express.Router();
 
 router.use(verifyJWT);
@@ -24,7 +26,7 @@ router.get("/pending-workers", isOwner, getPendingWorkers);
 router.get("/workers", isAdminOrOwner, getAllWorkers);
 router.get("/dashboard", isAdminOrOwner, getUniversalDashboard);
 
-router.patch("/approve/:workerId", isOwner, approveWorker);
+router.patch("/approve/:workerId", isOwner, checkWorkerLimit, approveWorker);
 router.patch("/deactivate/:workerId", isOwner, deactivateWorker);
 
 router.patch("/assign-admin/:workerId", isOwner, assignAdminRole);

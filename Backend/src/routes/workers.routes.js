@@ -12,6 +12,8 @@ import { isWorker } from "../middlewares/role.middleware.js";
 
 import { upload } from "../middlewares/Multer.middleware.js";
 
+import { checkWorkerLimit } from "../middlewares/subscription.middleware.js";
+
 const router = express.Router();
 
 
@@ -21,6 +23,7 @@ router.post(
     { name: "photo", maxCount: 1 },
     { name: "aadhar", maxCount: 1 },
   ]),
+  checkWorkerLimit,
   registerWorker
 );
 

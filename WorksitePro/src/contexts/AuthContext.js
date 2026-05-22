@@ -40,10 +40,8 @@ export const AuthProvider = ({ children }) => {
     return u;
   };
 
-  const login = async (phone, otp, role, workerType) => {
-    const payload = { phone, otp };
-    if (role) payload.role = role;
-    if (workerType) payload.workerType = workerType;
+  const login = async (firebaseToken, registrationData = null) => {
+    const payload = { firebaseToken, ...registrationData };
 
     const res = await API.post("/auth/verify-otp", payload);
     if (res.data.success) {
@@ -51,14 +49,6 @@ export const AuthProvider = ({ children }) => {
       return await completeAuth(u, accessToken);
     }
     throw new Error("Login failed");
-  };
-
-  const sendOTP = async (phone) => {
-    const res = await API.post("/auth/send-otp", {
-      phone,
-      isRegistration: false,
-    });
-    return res.data.success;
   };
 
   const logout = async () => {
@@ -71,7 +61,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, setUser, loading, login, logout, sendOTP, checkUser, completeAuth }}
+      value={{ user, setUser, loading, login, logout, checkUser, completeAuth }}
     >
       {children}
     </AuthContext.Provider>

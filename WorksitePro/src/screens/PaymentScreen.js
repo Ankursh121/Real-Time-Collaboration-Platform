@@ -10,12 +10,18 @@ import {
   Alert,
   Modal,
   ScrollView,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import API from "../services/api";
-import { COLORS, RADIUS, SHADOW } from "../theme/colors";
+import { COLORS, RADIUS } from "../theme/colors";
+import ScreenWrapper from "../components/ScreenWrapper";
+import GlassCard from "../components/GlassCard";
+import Loader from "../components/Loader";
+import FuturisticButton from "../components/FuturisticButton";
+import StatusBadge from "../components/StatusBadge";
+import GlowingInput from "../components/GlowingInput";
 
 export default function PaymentScreen() {
   const [workerSummaries, setWorkerSummaries] = useState([]);
@@ -89,15 +95,14 @@ export default function PaymentScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loaderText}>Aggregating Ledgers...</Text>
-      </View>
+      <ScreenWrapper style={styles.loaderContainer}>
+        <Loader message="Aggregating Ledgers..." />
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Financial Accounts</Text>
@@ -108,35 +113,35 @@ export default function PaymentScreen() {
         data={filteredWorkers}
         keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 110 }}
         ListHeaderComponent={
           <>
             {/* Stats Cards */}
             <View style={styles.statsRow}>
-              <View style={[styles.statCard, { borderLeftColor: COLORS.primary }]}>
+              <GlassCard level={2} style={[styles.statCard, { borderLeftColor: COLORS.primary, borderLeftWidth: 3 }]}>
                 <Text style={styles.statLabel}>Outstanding</Text>
                 <Text style={[styles.statValue, { color: COLORS.primary }]}>
                   ₹{totalOutstanding.toLocaleString()}
                 </Text>
-              </View>
-              <View style={[styles.statCard, { borderLeftColor: COLORS.green }]}>
+              </GlassCard>
+              <GlassCard level={2} style={[styles.statCard, { borderLeftColor: COLORS.green, borderLeftWidth: 3 }]}>
                 <Text style={styles.statLabel}>Lifetime Paid</Text>
                 <Text style={[styles.statValue, { color: COLORS.green }]}>
                   ₹{totalDisbursed.toLocaleString()}
                 </Text>
-              </View>
-              <View style={[styles.statCard, { borderLeftColor: COLORS.orange }]}>
+              </GlassCard>
+              <GlassCard level={2} style={[styles.statCard, { borderLeftColor: COLORS.orange, borderLeftWidth: 3 }]}>
                 <Text style={styles.statLabel}>With Dues</Text>
                 <Text style={[styles.statValue, { color: COLORS.orange }]}>
                   {workersWithDues}
                 </Text>
-              </View>
+              </GlassCard>
             </View>
 
             {/* Search + Site Filter */}
             <View style={styles.searchSection}>
-              <View style={styles.searchInput}>
-                <Ionicons name="search" size={18} color={COLORS.mutedForeground} />
+              <View style={styles.searchInputContainer}>
+                <Ionicons name="search" size={18} color={COLORS.mutedForeground} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchText}
                   placeholder="Search by name or phone..."
@@ -148,8 +153,8 @@ export default function PaymentScreen() {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={{ marginTop: 10 }}
-                contentContainerStyle={{ gap: 8, paddingHorizontal: 0 }}
+                style={{ marginTop: 12 }}
+                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
               >
                 {[{ _id: "all", name: "All Sites" }, ...sites].map((s) => (
                   <TouchableOpacity
@@ -186,7 +191,7 @@ export default function PaymentScreen() {
           </View>
         }
         renderItem={({ item: worker }) => (
-          <View style={styles.workerCard}>
+          <GlassCard level={2} style={styles.workerCard}>
             <View style={styles.workerRow}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
@@ -214,25 +219,20 @@ export default function PaymentScreen() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={[
-                styles.payBtn,
-                worker.dueAmount <= 0 && styles.payBtnDisabled,
-              ]}
+            <FuturisticButton
+              variant={worker.dueAmount > 0 ? "primary" : "glass"}
               disabled={worker.dueAmount <= 0}
               onPress={() => {
                 setSelectedWorker(worker);
                 setPayAmount(String(worker.dueAmount || ""));
                 setIsPayOpen(true);
               }}
-              activeOpacity={0.8}
+              icon={<Ionicons name="wallet-outline" size={16} color={worker.dueAmount > 0 ? "#fff" : COLORS.primary} />}
+              style={styles.payBtn}
             >
-              <Ionicons name="wallet-outline" size={16} color="#fff" />
-              <Text style={styles.payBtnText}>
-                {worker.dueAmount > 0 ? "Pay Now" : "Settled"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              {worker.dueAmount > 0 ? "Pay Now" : "Settled"}
+            </FuturisticButton>
+          </GlassCard>
         )}
       />
 
@@ -245,13 +245,13 @@ export default function PaymentScreen() {
                 <Ionicons name="wallet" size={28} color={COLORS.primary} />
               </View>
               <TouchableOpacity onPress={() => setIsPayOpen(false)}>
-                <Ionicons name="close-circle" size={28} color={COLORS.mutedForeground} />
+                <Ionicons name="close-circle" size={32} color={COLORS.mutedForeground} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalTitle}>Record Disbursement</Text>
             <Text style={styles.modalSub}>
               Settling dues for{" "}
-              <Text style={{ color: COLORS.foreground, fontWeight: "700" }}>
+              <Text style={{ color: COLORS.foreground, fontWeight: "800" }}>
                 {selectedWorker?.name}
               </Text>
             </Text>
@@ -271,7 +271,7 @@ export default function PaymentScreen() {
               </View>
             </View>
 
-            <View style={styles.amountInput}>
+            <View style={styles.amountInputContainer}>
               <Text style={styles.rupeeSym}>₹</Text>
               <TextInput
                 style={styles.amountField}
@@ -284,45 +284,33 @@ export default function PaymentScreen() {
               />
             </View>
 
-            <TouchableOpacity
-              style={[styles.finalizeBtn, processing && { opacity: 0.6 }]}
+            <FuturisticButton
+              variant="primary"
               onPress={handleRecordPayment}
-              disabled={processing}
-              activeOpacity={0.85}
+              loading={processing}
+              icon={<Ionicons name="save-outline" size={20} color="#fff" />}
+              style={styles.finalizeBtn}
             >
-              {processing ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={20} color="#fff" />
-                  <Text style={styles.finalizeBtnText}>Finalize Settlement</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              Finalize Settlement
+            </FuturisticButton>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  loader: {
+  loaderContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
   },
-  loaderText: {
-    color: COLORS.mutedForeground,
-    marginTop: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    fontSize: 11,
+  header: { 
+    padding: 24, 
+    paddingBottom: 8,
+    paddingTop: Platform.OS === "ios" ? 16 : 24,
   },
-  header: { padding: 24, paddingBottom: 8 },
   title: {
     color: COLORS.foreground,
     fontSize: 26,
@@ -339,135 +327,117 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    padding: 14,
-    borderLeftWidth: 3,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOW.card,
+    padding: 0,
   },
   statLabel: {
     color: COLORS.mutedForeground,
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 4,
   },
   statValue: {
     color: COLORS.foreground,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
   },
   searchSection: { paddingHorizontal: 24, marginBottom: 8 },
-  searchInput: {
+  searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: COLORS.card,
+    backgroundColor: "rgba(26, 26, 36, 0.6)",
     borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: "rgba(42, 42, 56, 1)",
     paddingHorizontal: 14,
-    height: 46,
+    height: 48,
   },
-  searchText: { flex: 1, color: COLORS.foreground, fontSize: 14 },
+  searchText: { flex: 1, color: COLORS.foreground, fontSize: 14, fontWeight: "600" },
   sitePill: {
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(26, 26, 36, 0.5)",
   },
   sitePillActive: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary,
   },
-  sitePillText: { color: COLORS.mutedForeground, fontWeight: "700", fontSize: 12 },
+  sitePillText: { color: COLORS.mutedForeground, fontWeight: "800", fontSize: 12 },
   sitePillTextActive: { color: "#fff" },
   listHeader: {
     color: COLORS.mutedForeground,
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 1,
     paddingHorizontal: 24,
     marginBottom: 10,
-    marginTop: 8,
+    marginTop: 12,
   },
   emptyState: { alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 10 },
-  emptyTitle: { color: COLORS.foreground, fontSize: 18, fontWeight: "700" },
+  emptyTitle: { color: COLORS.foreground, fontSize: 18, fontWeight: "800" },
   workerCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    marginHorizontal: 16,
-    marginBottom: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOW.card,
+    marginHorizontal: 24,
+    marginBottom: 12,
+    padding: 0,
   },
   workerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: "rgba(124, 111, 247, 0.15)",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: COLORS.primary + "40",
+    borderWidth: 1,
+    borderColor: "rgba(124, 111, 247, 0.3)",
   },
   avatarText: { color: COLORS.primary, fontWeight: "900", fontSize: 20 },
   workerInfo: { flex: 1 },
   workerName: { color: COLORS.foreground, fontSize: 15, fontWeight: "800" },
-  workerPhone: { color: COLORS.mutedForeground, fontSize: 11, marginTop: 2 },
+  workerPhone: { color: COLORS.mutedForeground, fontSize: 12, marginTop: 2 },
   workerType: {
     color: COLORS.primary,
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 1,
-    marginTop: 2,
+    marginTop: 4,
   },
   amountCol: { alignItems: "flex-end" },
   dueAmt: { fontSize: 16, fontWeight: "900" },
-  paidAmt: { color: COLORS.mutedForeground, fontSize: 11, marginTop: 2 },
+  paidAmt: { color: COLORS.mutedForeground, fontSize: 12, marginTop: 2, fontWeight: "500" },
   payBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.lg,
-    paddingVertical: 11,
-    ...SHADOW.primary,
+    width: "100%",
   },
-  payBtnDisabled: { backgroundColor: COLORS.muted, ...{ shadowOpacity: 0 } },
-  payBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: COLORS.card,
+    backgroundColor: "#0f0f14",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
-    borderTopWidth: 1,
-    borderColor: COLORS.border,
+    borderTopWidth: 1.5,
+    borderColor: "rgba(124, 111, 247, 0.3)",
+    paddingBottom: Platform.OS === "ios" ? 40 : 24,
   },
-  modalTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+  modalTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16, alignItems: "center" },
   modalIconBox: {
     width: 56,
     height: 56,
     borderRadius: RADIUS.xl,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: "rgba(124, 111, 247, 0.15)",
     alignItems: "center",
     justifyContent: "center",
+    borderColor: "rgba(124, 111, 247, 0.3)",
+    borderWidth: 1,
   },
   modalTitle: {
     color: COLORS.foreground,
@@ -479,7 +449,9 @@ const styles = StyleSheet.create({
   modalInfoRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
   modalInfo: {
     flex: 1,
-    backgroundColor: COLORS.muted,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: RADIUS.lg,
     padding: 14,
     alignItems: "center",
@@ -487,19 +459,19 @@ const styles = StyleSheet.create({
   modalInfoLabel: {
     color: COLORS.mutedForeground,
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: 4,
   },
   modalInfoVal: { color: COLORS.foreground, fontSize: 18, fontWeight: "900" },
-  amountInput: {
+  amountInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.muted,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
     borderRadius: RADIUS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     paddingHorizontal: 16,
     height: 72,
     marginBottom: 20,
@@ -517,15 +489,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   finalizeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 18,
-    ...SHADOW.primary,
-    marginBottom: 8,
+    width: "100%",
   },
-  finalizeBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
 });

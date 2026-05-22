@@ -17,7 +17,6 @@ const paymentSchema = new mongoose.Schema(
     siteId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Site",
-      required: true,
     },
 
     periodStart: {

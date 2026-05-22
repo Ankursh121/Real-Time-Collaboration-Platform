@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wallet, 
@@ -28,6 +29,7 @@ import API from "../services/api";
 import toast from "react-hot-toast";
 
 const Payment = () => {
+    const navigate = useNavigate();
     const [workerSummaries, setWorkerSummaries] = useState([]);
     const [sites, setSites] = useState([]);
     const [loading, setLoading] = useState(true);

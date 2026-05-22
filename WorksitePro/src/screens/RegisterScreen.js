@@ -1,21 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
-import { COLORS, RADIUS, SHADOW } from "../theme/colors";
-import API from "../services/api";
+import { COLORS, RADIUS } from "../theme/colors";
+import { signInWithGoogle } from "../services/firebaseAuth";
+import ScreenWrapper from "../components/ScreenWrapper";
+import GlassCard from "../components/GlassCard";
+import FuturisticButton from "../components/FuturisticButton";
+import GlowingInput from "../components/GlowingInput";
+import StatusBadge from "../components/StatusBadge";
 
 const ROLES = [
   { id: "Owner", icon: "domain", label: "Owner" },
@@ -25,282 +27,379 @@ const ROLES = [
 
 const WORKER_TYPES = ["Labour", "Mistri", "Satring-Labour", "Satring-Mistri"];
 
-export default function RegisterScreen({ navigation }) {
+export default function RegisterScreen({ route, navigation }) {
+  const params = route.params || {};
+  const [googleAuth, setGoogleAuth] = useState({
+    idToken: params.idToken || "",
+    email: params.email || "",
+    name: params.name || "",
+  });
+
   const [formData, setFormData] = useState({
-    name: "",
+    name: params.name || "",
     phone: "",
     role: "",
     workerType: "",
     inviteCode: "",
   });
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState(1);
-  const { completeAuth } = useAuth();
+
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const handleSendOTP = async () => {
-    if (!formData.name) return Alert.alert("Required", "Please enter full name.");
-    if (formData.phone.length < 10) return Alert.alert("Required", "Enter a valid 10-digit phone number.");
-    if (!formData.role) return Alert.alert("Required", "Please select a role.");
-    if (formData.role === "Worker" && !formData.workerType) return Alert.alert("Required", "Select worker designation.");
+  // Sync route params to state if they change
+  useEffect(() => {
+    if (params.idToken) {
+      setGoogleAuth({
+        idToken: params.idToken,
+        email: params.email || "",
+        name: params.name || "",
+      });
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || params.name || "",
+      }));
+    }
+  }, [params.idToken, params.email, params.name]);
 
+  const handleVerifyGoogle = async () => {
     setLoading(true);
     try {
-      const res = await API.post("/auth/send-otp", {
-        phone: formData.phone,
-        isRegistration: true,
-      });
-      if (res.data.success) {
-        setStep(2);
-        Alert.alert("OTP Sent", `An OTP has been sent to +91 ${formData.phone}`);
-      }
+      const result = await signInWithGoogle();
+      setGoogleAuth(result);
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || result.name || "",
+      }));
+      Alert.alert("Verified", `Google Identity verified: ${result.email}`);
     } catch (e) {
-      Alert.alert("Error", typeof e === "string" ? e : e?.message || "Failed to send OTP");
+      if (e.message && e.message.toLowerCase().includes("cancelled")) return;
+      Alert.alert("Verification Failed", e.message || "Failed to authenticate Google identity");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRegister = async () => {
-    if (otp.length < 6) return Alert.alert("Invalid", "Please enter the 6-digit OTP.");
-    
+    if (!googleAuth.idToken) {
+      return Alert.alert("Required", "Please link your Google identity first.");
+    }
+    if (!formData.name.trim()) {
+      return Alert.alert("Required", "Please enter your full name.");
+    }
+    if (formData.phone.length < 10) {
+      return Alert.alert("Required", "Please enter a valid 10-digit phone number.");
+    }
+    if (!formData.role) {
+      return Alert.alert("Required", "Please assign a role to this account.");
+    }
+    if (formData.role === "Worker" && !formData.workerType) {
+      return Alert.alert("Required", "Please select worker designation.");
+    }
+
     setLoading(true);
     try {
-      const payload = { ...formData, otp };
-      const res = await API.post("/auth/verify-otp", payload);
-      
-      if (res.data.success) {
-        await completeAuth(res.data.data.user, res.data.data.accessToken);
-        Alert.alert("Success", "Registration complete!");
-      }
+      const registrationPayload = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        role: formData.role,
+        workerType: formData.workerType,
+        inviteCode: formData.inviteCode.trim(),
+      };
+
+      await login(googleAuth.idToken, registrationPayload);
+      Alert.alert("Success", "Registration complete!");
     } catch (e) {
-      Alert.alert("Error", typeof e === "string" ? e : e?.message || "Registration failed");
+      Alert.alert(
+        "Registration Failed",
+        e.response?.data?.message || e.message || "An error occurred during registration."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const isGoogleLinked = !!googleAuth.idToken;
+
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          
+          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color={COLORS.foreground} />
+              <Ionicons name="arrow-back" size={22} color={COLORS.foreground} />
             </TouchableOpacity>
-            <View>
-              <Text style={styles.title}>Onboard Worker</Text>
-              <Text style={styles.subtitle}>Register a new account on Worksite Pro.</Text>
+            <View style={styles.headerTitleBox}>
+              <Text style={styles.title}>Register Account</Text>
+              <Text style={styles.subtitle}>Set up your profile to join the team.</Text>
             </View>
           </View>
 
-          {step === 1 ? (
-            <View style={styles.form}>
-              <Text style={styles.label}>Full Name</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="person" size={20} color={COLORS.mutedForeground} style={styles.icon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Rahul Sharma"
-                  placeholderTextColor={COLORS.mutedForeground}
-                  value={formData.name}
-                  onChangeText={(v) => setFormData({ ...formData, name: v })}
-                />
+          {/* Google Identity Verification Card */}
+          <GlassCard level={isGoogleLinked ? 2 : 1} style={[styles.identityCard, isGoogleLinked && styles.identityCardVerified]}>
+            <View style={styles.identityHeader}>
+              <Ionicons
+                name={isGoogleLinked ? "checkmark-circle" : "warning"}
+                size={22}
+                color={isGoogleLinked ? COLORS.green : COLORS.orange}
+              />
+              <Text style={styles.identityTitle}>
+                {isGoogleLinked ? "Google Identity Linked" : "Google Verification"}
+              </Text>
+            </View>
+            
+            {isGoogleLinked ? (
+              <View style={styles.identityDetails}>
+                <Text style={styles.identityText}>Email: {googleAuth.email}</Text>
+                <StatusBadge color={COLORS.green} bgColor={COLORS.greenLight} style={styles.badge}>
+                  VERIFIED
+                </StatusBadge>
               </View>
-
-              <Text style={styles.label}>Phone Number</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="call" size={20} color={COLORS.mutedForeground} style={styles.icon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="10-digit number"
-                  placeholderTextColor={COLORS.mutedForeground}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={formData.phone}
-                  onChangeText={(v) => setFormData({ ...formData, phone: v })}
-                />
+            ) : (
+              <View style={styles.identityActions}>
+                <Text style={styles.identitySubtext}>
+                  To secure your account, we authenticate all profiles via Google.
+                </Text>
+                <FuturisticButton
+                  variant="primary"
+                  onPress={handleVerifyGoogle}
+                  disabled={loading}
+                  icon={<Ionicons name="logo-google" size={16} color="#fff" />}
+                  style={styles.verifyBtn}
+                >
+                  Verify Google Account
+                </FuturisticButton>
               </View>
+            )}
+          </GlassCard>
 
-              <Text style={styles.label}>Assign Role</Text>
-              <View style={styles.roleGrid}>
-                {ROLES.map((r) => {
-                  const isSelected = formData.role === r.id;
-                  return (
-                    <TouchableOpacity
-                      key={r.id}
-                      style={[styles.roleCard, isSelected && styles.roleCardActive]}
-                      onPress={() => setFormData({ ...formData, role: r.id, workerType: "" })}
-                    >
-                      <MaterialCommunityIcons name={r.icon} size={24} color={isSelected ? COLORS.primary : COLORS.mutedForeground} />
-                      <Text style={[styles.roleLabel, isSelected && styles.roleLabelActive]}>{r.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+          {/* Registration Form — active only when Google identity is verified */}
+          <View 
+            style={[styles.form, !isGoogleLinked && styles.formDisabled, { pointerEvents: isGoogleLinked ? "auto" : "none" }]} 
+            {...(Platform.OS !== "web" ? { pointerEvents: isGoogleLinked ? "auto" : "none" } : {})}
+          >
+            <Text style={styles.label}>Full Name</Text>
+            <GlowingInput
+              icon={<Ionicons name="person" size={20} color={COLORS.mutedForeground} />}
+              placeholder="e.g. Rahul Sharma"
+              value={formData.name}
+              onChangeText={(v) => setFormData({ ...formData, name: v })}
+              editable={isGoogleLinked}
+            />
 
-              {formData.role === "Worker" && (
-                <>
-                  <Text style={styles.label}>Worker Designation</Text>
-                  <View style={styles.typeGrid}>
-                    {WORKER_TYPES.map((t) => (
+            <Text style={styles.label}>Phone Number</Text>
+            <GlowingInput
+              icon={<Ionicons name="call" size={20} color={COLORS.mutedForeground} />}
+              placeholder="10-digit number"
+              keyboardType="phone-pad"
+              maxLength={10}
+              value={formData.phone}
+              onChangeText={(v) => setFormData({ ...formData, phone: v })}
+              editable={isGoogleLinked}
+            />
+
+            <Text style={styles.label}>Assign Role</Text>
+            <View style={styles.roleGrid}>
+              {ROLES.map((r) => {
+                const isSelected = formData.role === r.id;
+                return (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={[styles.roleCard, isSelected && styles.roleCardActive]}
+                    onPress={() => setFormData({ ...formData, role: r.id, workerType: "" })}
+                    disabled={!isGoogleLinked}
+                  >
+                    <MaterialCommunityIcons
+                      name={r.icon}
+                      size={26}
+                      color={isSelected ? COLORS.primary : COLORS.mutedForeground}
+                    />
+                    <Text style={[styles.roleLabel, isSelected && styles.roleLabelActive]}>
+                      {r.label}
+                    </Text>
+                    {isSelected && <View style={styles.roleDot} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {formData.role === "Worker" && (
+              <>
+                <Text style={styles.label}>Worker Designation</Text>
+                <View style={styles.typeGrid}>
+                  {WORKER_TYPES.map((t) => {
+                    const isSelected = formData.workerType === t;
+                    return (
                       <TouchableOpacity
                         key={t}
-                        style={[styles.typeBtn, formData.workerType === t && styles.typeBtnActive]}
+                        style={[styles.typeBtn, isSelected && styles.typeBtnActive]}
                         onPress={() => setFormData({ ...formData, workerType: t })}
+                        disabled={!isGoogleLinked}
                       >
-                        <Text style={[styles.typeBtnText, formData.workerType === t && styles.typeBtnTextActive]}>
+                        <Text style={[styles.typeBtnText, isSelected && styles.typeBtnTextActive]}>
                           {t}
                         </Text>
                       </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
-              {formData.role !== "Owner" && (
-                <>
-                  <Text style={styles.label}>Invite Code (Optional)</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons name="business" size={20} color={COLORS.mutedForeground} style={styles.icon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Link to an organization"
-                      placeholderTextColor={COLORS.mutedForeground}
-                      autoCapitalize="characters"
-                      value={formData.inviteCode}
-                      onChangeText={(v) => setFormData({ ...formData, inviteCode: v.toUpperCase() })}
-                    />
-                  </View>
-                </>
-              )}
-
-              <TouchableOpacity
-                style={[styles.submitBtn, loading && { opacity: 0.6 }]}
-                onPress={handleSendOTP}
-                disabled={loading}
-              >
-                {loading ? <ActivityIndicator color="#fff" /> : (
-                  <>
-                    <Text style={styles.submitBtnText}>Verify Details</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#fff" />
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.form}>
-              <Text style={styles.label}>Verification OTP</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed" size={20} color={COLORS.mutedForeground} style={styles.icon} />
-                <TextInput
-                  style={[styles.input, { letterSpacing: 4, fontWeight: "900", fontSize: 20 }]}
-                  placeholder="Enter 6-digit OTP"
-                  placeholderTextColor={COLORS.mutedForeground}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  value={otp}
-                  onChangeText={setOtp}
-                  autoFocus
+            {formData.role !== "Owner" && formData.role !== "" && (
+              <>
+                <Text style={styles.label}>Invite Code (Optional)</Text>
+                <GlowingInput
+                  icon={<Ionicons name="business" size={20} color={COLORS.mutedForeground} />}
+                  placeholder="Link to an organization"
+                  autoCapitalize="characters"
+                  value={formData.inviteCode}
+                  onChangeText={(v) => setFormData({ ...formData, inviteCode: v.toUpperCase() })}
+                  editable={isGoogleLinked}
                 />
-              </View>
-              
-              <TouchableOpacity onPress={() => setStep(1)}>
-                <Text style={styles.editBtn}>← Edit registration details</Text>
-              </TouchableOpacity>
+              </>
+            )}
 
-              <TouchableOpacity
-                style={[styles.submitBtn, loading && { opacity: 0.6 }]}
-                onPress={handleRegister}
-                disabled={loading}
-              >
-                {loading ? <ActivityIndicator color="#fff" /> : (
-                  <>
-                    <Text style={styles.submitBtnText}>Complete Registration</Text>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
+            <FuturisticButton
+              variant="primary"
+              onPress={handleRegister}
+              disabled={loading || !isGoogleLinked}
+              icon={<Ionicons name="checkmark-circle" size={20} color="#fff" />}
+              style={styles.submitBtn}
+            >
+              Complete Registration
+            </FuturisticButton>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
   scroll: { padding: 24, paddingBottom: 40 },
-  header: { flexDirection: "row", alignItems: "flex-start", gap: 16, marginBottom: 32 },
+  header: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 28 },
   backBtn: {
     width: 44,
     height: 44,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.card,
+    backgroundColor: "rgba(26,26,36,0.6)",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
   },
-  title: { color: COLORS.foreground, fontSize: 28, fontWeight: "900", letterSpacing: -0.5 },
-  subtitle: { color: COLORS.mutedForeground, fontSize: 14, marginTop: 4 },
-  form: { gap: 8 },
-  label: { color: COLORS.accentForeground, fontSize: 12, fontWeight: "700", marginTop: 8, letterSpacing: 0.5, textTransform: "uppercase" },
-  inputWrapper: {
+  headerTitleBox: {
+    flex: 1,
+  },
+  title: { color: COLORS.foreground, fontSize: 26, fontWeight: "900", letterSpacing: -0.5 },
+  subtitle: { color: COLORS.mutedForeground, fontSize: 13, marginTop: 2 },
+  
+  identityCard: {
+    marginBottom: 24,
+  },
+  identityCardVerified: {
+    borderColor: "rgba(34,197,94,0.3)",
+  },
+  identityHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    height: 56,
+    gap: 8,
     marginBottom: 8,
   },
-  icon: { marginRight: 12 },
-  input: { flex: 1, color: COLORS.foreground, fontSize: 16, fontWeight: "600" },
-  roleGrid: { flexDirection: "row", gap: 10, marginBottom: 8 },
+  identityTitle: {
+    color: COLORS.foreground,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  identityDetails: {
+    paddingLeft: 30,
+    gap: 8,
+  },
+  identityText: {
+    color: COLORS.foreground,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  badge: {
+    marginTop: 4,
+  },
+  identityActions: {
+    paddingLeft: 30,
+    gap: 12,
+  },
+  identitySubtext: {
+    color: COLORS.mutedForeground,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  verifyBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+
+  form: { gap: 6 },
+  formDisabled: {
+    opacity: 0.35,
+  },
+  label: { 
+    color: COLORS.accentForeground, 
+    fontSize: 11, 
+    fontWeight: "800", 
+    marginTop: 12, 
+    marginBottom: 6,
+    letterSpacing: 1, 
+    textTransform: "uppercase" 
+  },
+  roleGrid: { flexDirection: "row", gap: 12, marginBottom: 8 },
   roleCard: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: RADIUS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderWidth: 1.5,
+    borderColor: "rgba(42, 42, 56, 1)",
+    backgroundColor: "rgba(26, 26, 36, 0.6)",
     gap: 6,
+    position: "relative",
   },
-  roleCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
-  roleLabel: { color: COLORS.mutedForeground, fontSize: 12, fontWeight: "700" },
+  roleCardActive: { 
+    borderColor: COLORS.primary, 
+    backgroundColor: "rgba(124, 111, 247, 0.1)" 
+  },
+  roleLabel: { color: COLORS.mutedForeground, fontSize: 13, fontWeight: "800" },
   roleLabelActive: { color: COLORS.primary },
+  roleDot: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
   typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   typeBtn: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderWidth: 1.5,
+    borderColor: "rgba(42, 42, 56, 1)",
+    backgroundColor: "rgba(26, 26, 36, 0.6)",
   },
-  typeBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
-  typeBtnText: { color: COLORS.mutedForeground, fontWeight: "700", fontSize: 13 },
+  typeBtnActive: { 
+    borderColor: COLORS.primary, 
+    backgroundColor: COLORS.primary 
+  },
+  typeBtnText: { color: COLORS.mutedForeground, fontWeight: "800", fontSize: 13 },
   typeBtnTextActive: { color: "#fff" },
   submitBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
     marginTop: 24,
-    ...SHADOW.primary,
   },
-  submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  editBtn: { color: COLORS.primary, fontWeight: "700", fontSize: 13, marginBottom: 16 },
 });

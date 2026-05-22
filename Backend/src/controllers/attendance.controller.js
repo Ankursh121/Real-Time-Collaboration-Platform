@@ -39,7 +39,7 @@ export const markAttendance = asyncHandler(async (req, res) => {
   const markOwnerId = effectiveOwnerId?.toString();
 
   if (workerOwnerId !== markOwnerId) {
-    throw new ApiError(403, `Unauthorized action: This worker belongs to owner ${workerOwnerId}, but you are under owner ${markOwnerId}`);
+    throw new ApiError(403, `This worker does not belong to you (belongs to owner ${workerOwnerId}, but you are under owner ${markOwnerId})`);
   }
 
   if (req.user.role === UserRoles.ADMIN && worker.role !== UserRoles.WORKER) {

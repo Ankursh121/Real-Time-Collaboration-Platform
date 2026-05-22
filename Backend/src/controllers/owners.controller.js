@@ -254,6 +254,9 @@ export const getUniversalDashboard = asyncHandler(async (req, res) => {
   }
 
   const totalWorkers = await User.countDocuments(workerQuery);
+  const totalLabours = await User.countDocuments({ ...workerQuery, workerType: "Labour" });
+  const totalMistris = await User.countDocuments({ ...workerQuery, workerType: "Mistri" });
+
   const totalAdmins = isOwnerRole ? await User.countDocuments(adminQuery) : 0;
   const activeSites = await Site.countDocuments(siteQuery);
 
@@ -356,6 +359,8 @@ export const getUniversalDashboard = asyncHandler(async (req, res) => {
       {
         summary: {
             totalWorkers,
+            totalLabours,
+            totalMistris,
             totalAdmins,
             activeSites,
             attendanceToday,

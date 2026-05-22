@@ -2,74 +2,99 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
-import { COLORS, FONTS, RADIUS, SHADOW } from "../theme/colors";
-
-const ROLES = [
-  { id: "Owner", icon: "office-building", label: "Owner" },
-  { id: "Admin", icon: "shield-account", label: "Admin" },
-  { id: "Worker", icon: "hard-hat", label: "Worker" },
-];
-
-const WORKER_TYPES = ["Labour", "Mistri", "Satring-Labour", "Satring-Mistri"];
+import { COLORS, RADIUS } from "../theme/colors";
+import { signInWithGoogle } from "../services/firebaseAuth";
+import ScreenWrapper from "../components/ScreenWrapper";
+import GlassCard from "../components/GlassCard";
+import FuturisticButton from "../components/FuturisticButton";
 
 export default function LoginScreen({ navigation }) {
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [role, setRole] = useState("");
-  const [workerType, setWorkerType] = useState("");
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
-  const { login, sendOTP } = useAuth();
-
-  const handleSendOTP = async () => {
-    if (!role) return Alert.alert("Select Role", "Please select your role first.");
-    if (role === "Worker" && !workerType)
-      return Alert.alert("Select Type", "Please select your worker designation.");
-    if (phone.length < 10)
-      return Alert.alert("Invalid Phone", "Enter a valid 10-digit phone number.");
-
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const success = await sendOTP(phone);
-      if (success) {
-        setStep(2);
-        Alert.alert("OTP Sent", `An OTP has been sent to ${phone}`);
+      const { idToken, email, name } = await signInWithGoogle();
+      
+      try {
+        const user = await login(idToken);
+        if (!user) {
+          Alert.alert("Login Failed", "Could not verify your credentials.");
+        }
+      } catch (err) {
+        const isNotRegistered = 
+          err.response?.status === 404 || 
+          err.message?.includes("404") || 
+          err.response?.data?.message?.toLowerCase().includes("register") ||
+          err.response?.data?.message?.toLowerCase().includes("not found");
+          
+        if (isNotRegistered) {
+          if (Platform.OS === "web") {
+            const setupProfile = window.confirm(
+              "Account Setup Required\n\nThis Google account is not registered yet. Would you like to set up your profile?"
+            );
+            if (setupProfile) {
+              navigation.navigate("Register", { idToken, email, name });
+            }
+          } else {
+            Alert.alert(
+              "Account Setup Required",
+              "This Google account is not registered yet. Let's set up your profile.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel"
+                },
+                {
+                  text: "Set Up Profile",
+                  onPress: () => navigation.navigate("Register", { idToken, email, name })
+                }
+              ]
+            );
+          }
+        } else {
+          throw err;
+        }
       }
     } catch (e) {
-      Alert.alert("Error", typeof e === "string" ? e : e?.message || "Failed to send OTP");
+      if (e.message && e.message.toLowerCase().includes("cancelled")) {
+        // Log cancelled cleanly
+        console.log("[Google Auth] Login cancelled by user");
+        return;
+      }
+      Alert.alert(
+        "Authentication Error",
+        e.response?.data?.message || e.message || "Failed to authenticate with Google"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = async () => {
-    if (otp.length < 6) return Alert.alert("Invalid OTP", "Please enter the 6-digit OTP.");
+  const handleRegisterLinkClick = async () => {
     setLoading(true);
     try {
-      const user = await login(phone, otp, role, workerType);
-      if (!user) Alert.alert("Login Failed", "Could not verify your credentials.");
+      const { idToken, email, name } = await signInWithGoogle();
+      navigation.navigate("Register", { idToken, email, name });
     } catch (e) {
-      Alert.alert("Error", typeof e === "string" ? e : e?.message || "Login failed");
+      if (e.message && e.message.toLowerCase().includes("cancelled")) return;
+      Alert.alert("Google Auth Failed", e.message || "Failed to link Google account.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -81,330 +106,193 @@ export default function LoginScreen({ navigation }) {
         >
           {/* Logo / Brand */}
           <View style={styles.brandRow}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoText}>W</Text>
+            <View style={styles.logo3D}>
+              <View style={styles.logoFace}>
+                <Text style={styles.logoText}>W</Text>
+              </View>
             </View>
             <View>
               <Text style={styles.brandName}>Worksite Pro</Text>
-              <Text style={styles.brandTagline}>Construction Command Center</Text>
+              <Text style={styles.brandTagline}>COMMAND CENTRE</Text>
             </View>
           </View>
 
           {/* Headline */}
           <View style={styles.headingBox}>
-            <Text style={styles.heading}>
-              {step === 1 ? "Welcome Back" : "Verify OTP"}
-            </Text>
+            <Text style={styles.heading}>Welcome to Worksite</Text>
             <Text style={styles.subheading}>
-              {step === 1
-                ? "Select your role and sign in to continue."
-                : `Enter the OTP sent to +91 ${phone}`}
+              Connect with your team, manage tasks, and track attendance in real-time.
             </Text>
           </View>
 
-          {step === 1 ? (
-            <>
-              {/* Role Selection */}
-              <Text style={styles.label}>I am logging in as a...</Text>
-              <View style={styles.roleGrid}>
-                {ROLES.map((r) => {
-                  const isSelected = role === r.id;
-                  return (
-                    <TouchableOpacity
-                      key={r.id}
-                      style={[styles.roleCard, isSelected && styles.roleCardActive]}
-                      onPress={() => { setRole(r.id); setWorkerType(""); }}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialCommunityIcons
-                        name={r.icon}
-                        size={28}
-                        color={isSelected ? COLORS.primary : COLORS.mutedForeground}
-                      />
-                      <Text style={[styles.roleLabel, isSelected && styles.roleLabelActive]}>
-                        {r.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+          {/* Feature Highlight Cards */}
+          <View style={styles.featureGrid}>
+            <GlassCard level={2} style={styles.featureCard}>
+              <MaterialCommunityIcons name="lightning-bolt" size={24} color={COLORS.primary} />
+              <Text style={styles.featureTitle}>Instant Setup</Text>
+              <Text style={styles.featureDesc}>One-tap login using your Google account.</Text>
+            </GlassCard>
+            <GlassCard level={2} style={styles.featureCard}>
+              <MaterialCommunityIcons name="clock-check" size={24} color={COLORS.primary} />
+              <Text style={styles.featureTitle}>Easy Check-In</Text>
+              <Text style={styles.featureDesc}>Log attendance and check shift schedules instantly.</Text>
+            </GlassCard>
+          </View>
 
-              {/* Worker Subtype */}
-              {role === "Worker" && (
-                <>
-                  <Text style={styles.label}>Worker Designation</Text>
-                  <View style={styles.typeRow}>
-                    {WORKER_TYPES.map((t) => (
-                      <TouchableOpacity
-                        key={t}
-                        style={[styles.typeBtn, workerType === t && styles.typeBtnActive]}
-                        onPress={() => setWorkerType(t)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[styles.typeBtnText, workerType === t && styles.typeBtnTextActive]}>
-                          {t}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* Phone Input */}
-              <Text style={styles.label}>Phone Number</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="call" size={20} color={COLORS.mutedForeground} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Your 10-digit number"
-                  placeholderTextColor={COLORS.mutedForeground}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={phone}
-                  onChangeText={setPhone}
-                />
-              </View>
-            </>
-          ) : (
-            <>
-              {/* OTP Input */}
-              <Text style={styles.label}>Security OTP</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed" size={20} color={COLORS.mutedForeground} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, styles.otpInput]}
-                  placeholder="Enter 6-digit OTP"
-                  placeholderTextColor={COLORS.mutedForeground}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  value={otp}
-                  onChangeText={setOtp}
-                  autoFocus
-                />
-              </View>
-              <TouchableOpacity onPress={() => setStep(1)}>
-                <Text style={styles.editPhone}>← Edit phone number</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-            onPress={step === 1 ? handleSendOTP : handleLogin}
-            disabled={loading}
-            activeOpacity={0.85}
+          {/* Google Sign-in Button */}
+          <FuturisticButton
+            onPress={handleGoogleSignIn}
+            loading={loading}
+            icon={<Ionicons name="logo-google" size={20} color="#fff" />}
+            style={styles.googleBtn}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.submitBtnText}>
-                  {step === 1 ? "Secure Login" : "Verify & Enter"}
-                </Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
+            Sign in with Google
+          </FuturisticButton>
 
           {/* Register Link */}
           <View style={styles.registerRow}>
             <Text style={styles.registerText}>New worker? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Register")}>
-              <Text style={styles.registerLink}>Register here</Text>
-            </TouchableOpacity>
+            <FuturisticButton
+              variant="glass"
+              onPress={handleRegisterLinkClick}
+              style={styles.registerBtn}
+              textStyle={styles.registerBtnText}
+            >
+              Register with Google
+            </FuturisticButton>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
   scroll: {
     padding: 24,
-    paddingTop: 16,
+    paddingTop: 48,
     paddingBottom: 40,
+    justifyContent: "center",
+    flexGrow: 1,
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    marginBottom: 36,
-    marginTop: 8,
+    gap: 16,
+    marginBottom: 48,
+    alignSelf: "center",
   },
-  logoBox: {
-    width: 52,
-    height: 52,
+  logo3D: {
+    width: 60,
+    height: 60,
     borderRadius: RADIUS.lg,
+    backgroundColor: "rgba(124, 111, 247, 0.2)",
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: "0 0 20px rgba(124, 111, 247, 0.4)",
+      },
+    }),
+  },
+  logoFace: {
+    width: "88%",
+    height: "88%",
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
-    ...SHADOW.primary,
   },
   logoText: {
     color: "#fff",
-    fontSize: 26,
+    fontSize: 28,
     fontStyle: "italic",
     fontWeight: "900",
   },
   brandName: {
     color: COLORS.foreground,
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "900",
     letterSpacing: -0.5,
   },
   brandTagline: {
-    color: COLORS.mutedForeground,
-    fontSize: 12,
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.5,
     marginTop: 2,
   },
   headingBox: {
-    marginBottom: 32,
+    marginBottom: 40,
+    alignItems: "center",
   },
   heading: {
     color: COLORS.foreground,
     fontSize: 32,
     fontWeight: "900",
     letterSpacing: -1,
-    marginBottom: 6,
+    marginBottom: 12,
+    textAlign: "center",
   },
   subheading: {
     color: COLORS.mutedForeground,
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 22,
+    textAlign: "center",
+    paddingHorizontal: 8,
   },
-  label: {
-    color: COLORS.accentForeground,
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 10,
-    letterSpacing: 0.3,
-  },
-  roleGrid: {
+  featureGrid: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 24,
+    gap: 16,
+    marginBottom: 48,
   },
-  roleCard: {
+  featureCard: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    borderRadius: RADIUS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    padding: 0,
     gap: 8,
   },
-  roleCardActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-    ...SHADOW.primary,
+  featureTitle: {
+    color: COLORS.foreground,
+    fontSize: 15,
+    fontWeight: "800",
+    marginTop: 4,
   },
-  roleLabel: {
+  featureDesc: {
     color: COLORS.mutedForeground,
     fontSize: 12,
-    fontWeight: "700",
+    lineHeight: 16,
   },
-  roleLabelActive: {
-    color: COLORS.primary,
-  },
-  typeRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 24,
-  },
-  typeBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-  },
-  typeBtnActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary,
-    ...SHADOW.primary,
-  },
-  typeBtnText: {
-    color: COLORS.mutedForeground,
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  typeBtnTextActive: {
-    color: "#fff",
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    marginBottom: 24,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    color: COLORS.foreground,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  otpInput: {
-    letterSpacing: 6,
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  editPhone: {
-    color: COLORS.primary,
-    fontWeight: "700",
-    fontSize: 13,
-    marginTop: -12,
-    marginBottom: 24,
-  },
-  submitBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
+  googleBtn: {
     marginTop: 8,
-    ...SHADOW.primary,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: 0.3,
   },
   registerRow: {
-    flexDirection: "row",
+    flexDirection: "column",
+    alignItems: "center",
     justifyContent: "center",
-    marginTop: 28,
+    marginTop: 36,
+    gap: 12,
   },
   registerText: {
     color: COLORS.mutedForeground,
     fontSize: 14,
+    fontWeight: "600",
   },
-  registerLink: {
-    color: COLORS.primary,
-    fontWeight: "700",
+  registerBtn: {
+    width: "100%",
+  },
+  registerBtnText: {
     fontSize: 14,
+    fontWeight: "800",
   },
 });

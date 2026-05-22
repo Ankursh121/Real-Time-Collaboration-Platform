@@ -13,6 +13,7 @@ import RateManagementScreen from "../screens/RateManagementScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SiteManagementScreen from "../screens/SiteManagementScreen";
 import SiteDetailsScreen from "../screens/SiteDetailsScreen";
+import SubscriptionScreen from "../screens/SubscriptionScreen";
 
 import { COLORS, RADIUS, SHADOW } from "../theme/colors";
 import { useAuth } from "../contexts/AuthContext";
@@ -125,10 +126,17 @@ const WorkerTabs = () => (
   </Tab.Navigator>
 );
 
+const OwnerStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Main" component={OwnerTabs} />
+    <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+  </Stack.Navigator>
+);
+
 export default function AppNavigator() {
   const { user } = useAuth();
 
-  if (user?.role === "Owner") return <OwnerTabs />;
+  if (user?.role === "Owner") return <OwnerStack />;
   if (user?.role === "Admin") return <AdminTabs />;
   return <WorkerTabs />;
 }

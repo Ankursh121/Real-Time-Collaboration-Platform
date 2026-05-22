@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "319787442541",
+    "project_id": "worksitepro-94df4",
+    "storage_bucket": "worksitepro-94df4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319787442541:android:fe679166c9bb13162bfa64",
+        "android_client_info": {
+          "package_name": "com.worksitepro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-K-zX8Wp0B-vwGFkH7Adza3pKprdOgAg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -30,7 +30,14 @@ app.use(
 );
 
 
-app.use(express.json({ limit: "16kb" }));
+app.use(
+  express.json({
+    limit: "16kb",
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public")); // make sure folder name matches
 app.use(cookieParser());
@@ -44,6 +51,7 @@ import siteRoutes from "./routes/sites.routes.js";
 
 
 import rateRoutes from "./routes/rate.routes.js";
+import subscriptionRoutes from "./routes/subscription.routes.js";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/workers", workerRoutes);
@@ -52,6 +60,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/sites", siteRoutes);
 app.use("/api/rates", rateRoutes);
+app.use("/api/subscription", subscriptionRoutes);
 
 
 import ApiError from "./utils/ApiError.js";

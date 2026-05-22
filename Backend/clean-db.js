@@ -5,6 +5,7 @@ import Site from "./src/models/site.models.js";
 import Attendance from "./src/models/attendance.models.js";
 import Payment from "./src/models/payment.models.js";
 import Rate from "./src/models/rate.models.js";
+import Subscription from "./src/models/subscription.models.js";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ const cleanDB = async () => {
     try { await Attendance.deleteMany({}); console.log("Cleared Attendance"); } catch (e) {}
     try { await Payment.deleteMany({}); console.log("Cleared Payments"); } catch (e) {}
     try { await Rate.deleteMany({}); console.log("Cleared Rates"); } catch (e) {}
+    try { await Subscription.deleteMany({}); console.log("Cleared Subscriptions"); } catch (e) {}
 
     console.log("Database successfully cleaned!");
     process.exit(0);
