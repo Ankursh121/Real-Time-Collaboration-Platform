@@ -73,13 +73,7 @@ export default function RegisterScreen({ route, navigation }) {
   }, [params.idToken, params.email, params.name]);
 
   const handleVerifyGoogleClick = () => {
-    if (Platform.OS === "web") {
-      executeVerifyGoogle(null);
-    } else {
-      setInputEmail("");
-      setShowCustomEmailInput(false);
-      setEmailModalVisible(true);
-    }
+    executeVerifyGoogle(null);
   };
 
   const executeVerifyGoogle = async (customEmail = null) => {
@@ -93,8 +87,32 @@ export default function RegisterScreen({ route, navigation }) {
       }));
       Alert.alert("Verified", `Google Identity verified: ${result.email}`);
     } catch (e) {
-      if (e.message && e.message.toLowerCase().includes("cancelled")) return;
-      Alert.alert("Verification Failed", e.message || "Failed to authenticate Google identity");
+      if (e.message && e.message.toLowerCase().includes("cancelled")) {
+        console.log("[Google Auth] Verification cancelled by user");
+        return;
+      }
+      
+      if (Platform.OS !== "web" && !customEmail) {
+        Alert.alert(
+          "Google Sign-In Error",
+          `${e.message || "Failed to connect to Google Services."}\n\nWould you like to use a manual mock email for testing?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            { 
+              text: "Use Mock Email", 
+              onPress: () => {
+                setInputEmail("testuser@example.com");
+                setEmailModalVisible(true);
+              } 
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Verification Failed",
+          e.response?.data?.message || e.message || "Failed to authenticate Google identity"
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -308,92 +326,44 @@ export default function RegisterScreen({ route, navigation }) {
           <GlassCard level={3} style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Ionicons name="logo-google" size={28} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Choose an account</Text>
+              <Text style={styles.modalTitle}>Mock Google Verification</Text>
             </View>
             <Text style={styles.modalSubtitle}>
-              to continue to Worksite Pro
+              Please enter the mock Google account email address you wish to verify.
             </Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. email@gmail.com"
+              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+              value={inputEmail}
+              onChangeText={setInputEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
 
-            {!showCustomEmailInput ? (
-              <View style={{ width: "100%", marginVertical: 12 }}>
-                {googleAccounts.map((account, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={styles.accountRow}
-                    onPress={() => {
-                      setEmailModalVisible(false);
-                      executeVerifyGoogle(account.email);
-                    }}
-                  >
-                    <View style={[styles.avatarCircle, { backgroundColor: account.color }]}>
-                      <Text style={styles.avatarText}>{account.avatar}</Text>
-                    </View>
-                    <View style={styles.accountDetails}>
-                      <Text style={styles.accountName}>{account.name}</Text>
-                      <Text style={styles.accountEmail}>{account.email}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="rgba(255, 255, 255, 0.3)" />
-                  </TouchableOpacity>
-                ))}
-
-                <TouchableOpacity
-                  style={[styles.accountRow, { borderBottomWidth: 0, marginTop: 8 }]}
-                  onPress={() => setShowCustomEmailInput(true)}
-                >
-                  <View style={[styles.avatarCircle, { backgroundColor: "rgba(255, 255, 255, 0.1)" }]}>
-                    <Ionicons name="person-add-outline" size={20} color="#fff" />
-                  </View>
-                  <View style={styles.accountDetails}>
-                    <Text style={[styles.accountName, { color: COLORS.primary }]}>Use another account</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ width: "100%" }}>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g. email@gmail.com"
-                  placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                  value={inputEmail}
-                  onChangeText={setInputEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={[styles.modalBtn, styles.modalBtnCancel]} 
-                    onPress={() => setShowCustomEmailInput(false)}
-                  >
-                    <Text style={styles.modalBtnTextCancel}>Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.modalBtn, styles.modalBtnConfirm]} 
-                    onPress={() => {
-                      if (!inputEmail || !inputEmail.includes("@")) {
-                        Alert.alert("Validation Error", "Please enter a valid email address.");
-                        return;
-                      }
-                      setEmailModalVisible(false);
-                      executeVerifyGoogle(inputEmail.trim());
-                    }}
-                  >
-                    <Text style={styles.modalBtnTextConfirm}>Continue</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {!showCustomEmailInput && (
-              <View style={styles.modalActions}>
-                <TouchableOpacity 
-                  style={[styles.modalBtn, styles.modalBtnCancel, { width: "100%" }]} 
-                  onPress={() => setEmailModalVisible(false)}
-                >
-                  <Text style={styles.modalBtnTextCancel}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalBtnCancel]} 
+                onPress={() => setEmailModalVisible(false)}
+              >
+                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalBtnConfirm]} 
+                onPress={() => {
+                  if (!inputEmail || !inputEmail.includes("@")) {
+                    Alert.alert("Validation Error", "Please enter a valid email address.");
+                    return;
+                  }
+                  setEmailModalVisible(false);
+                  executeVerifyGoogle(inputEmail.trim());
+                }}
+              >
+                <Text style={styles.modalBtnTextConfirm}>Continue</Text>
+              </TouchableOpacity>
+            </View>
           </GlassCard>
         </View>
       </Modal>
