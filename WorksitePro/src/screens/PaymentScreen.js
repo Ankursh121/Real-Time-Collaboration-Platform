@@ -75,7 +75,7 @@ export default function PaymentScreen() {
         fetchData();
       }
     } catch (e) {
-      Alert.alert("Error", typeof e === "string" ? e : "Payment failed");
+      Alert.alert("Error", typeof e === "string" ? e : (e.message || "Payment failed"));
     } finally {
       setProcessing(false);
     }

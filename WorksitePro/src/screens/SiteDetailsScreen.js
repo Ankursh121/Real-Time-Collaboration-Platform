@@ -113,7 +113,7 @@ export default function SiteDetailsScreen({ route, navigation }) {
         setAssignModalVisible(false);
       }
     } catch (e) {
-      Alert.alert("Error", typeof e === "string" ? e : "Failed to assign worker.");
+      Alert.alert("Error", typeof e === "string" ? e : (e.message || "Failed to assign worker."));
     } finally {
       setAssigning(false);
     }

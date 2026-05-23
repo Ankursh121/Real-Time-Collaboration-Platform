@@ -2,12 +2,10 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-// Detect if we are on Web, Android Emulator, or a Physical Device
-let BASE_URL = "http://10.2.1.9:5000/api"; // Default to physical device IP
-if (Platform.OS === "web") {
+// Detect if we are on Web (local dev) or production
+let BASE_URL = "https://real-time-collaboration-platform-lxpn.onrender.com/api";
+if (Platform.OS === "web" && __DEV__) {
   BASE_URL = "http://localhost:5000/api";
-} else if (Platform.OS === "android" && !__DEV__) {
-  // If needed later for emulator specifically: BASE_URL = "http://10.0.2.2:5000/api";
 }
 
 const API = axios.create({
@@ -33,7 +31,11 @@ API.interceptors.response.use(
       error.response?.data?.message ||
       error.message ||
       "Something went wrong";
-    return Promise.reject(message);
+    
+    const customError = new Error(message);
+    customError.response = error.response;
+    
+    return Promise.reject(customError);
   }
 );
 

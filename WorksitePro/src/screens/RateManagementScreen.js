@@ -70,7 +70,7 @@ export default function RateManagementScreen() {
         setFormData({ siteId: "global", workerType: "Labour", dailyRate: "", overtimeRatePerHour: "" });
       }
     } catch (e) { 
-      Alert.alert("Error", typeof e === "string" ? e : "Action failed"); 
+      Alert.alert("Error", typeof e === "string" ? e : (e.message || "Action failed")); 
     } finally { 
       setSaving(false); 
     }
