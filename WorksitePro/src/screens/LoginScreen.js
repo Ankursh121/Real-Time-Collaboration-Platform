@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
@@ -107,9 +108,11 @@ export default function LoginScreen({ navigation }) {
           {/* Logo / Brand */}
           <View style={styles.brandRow}>
             <View style={styles.logo3D}>
-              <View style={styles.logoFace}>
-                <Text style={styles.logoText}>W</Text>
-              </View>
+              <Image 
+                source={require("../../assets/App_logo.jpg")} 
+                style={styles.logoImage} 
+                resizeMode="cover"
+              />
             </View>
             <View>
               <Text style={styles.brandName}>Worksite Pro</Text>
@@ -294,5 +297,10 @@ const styles = StyleSheet.create({
   registerBtnText: {
     fontSize: 14,
     fontWeight: "800",
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: RADIUS.lg - 1.5,
   },
 });
