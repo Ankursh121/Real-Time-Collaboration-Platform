@@ -63,6 +63,14 @@ export const signInWithGoogle = async (customEmail = null) => {
   // Native Mobile Flow (Android & iOS)
   console.log("[Google Auth] Initiating Native Google Sign-In");
   try {
+    try {
+      GoogleSignin.configure({
+        offlineAccess: true,
+      });
+    } catch (configError) {
+      console.error("[Google Auth] Dynamic configure error:", configError);
+    }
+    
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const signInResult = await GoogleSignin.signIn();
     
