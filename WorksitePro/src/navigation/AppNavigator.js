@@ -32,10 +32,14 @@ const TabIcon = ({ name, focused, label }) => (
   <View style={[styles.tabItem, focused && styles.tabItemActive]}>
     <Ionicons
       name={focused ? name : `${name}-outline`}
-      size={22}
+      size={20}
       color={focused ? COLORS.primary : COLORS.mutedForeground}
     />
-    <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+    <Text 
+      style={[styles.tabLabel, focused && styles.tabLabelActive]}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
       {label}
     </Text>
   </View>
@@ -162,9 +166,9 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
     borderRadius: RADIUS.lg,
   },
   tabItemActive: {
@@ -172,9 +176,9 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     color: COLORS.mutedForeground,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   tabLabelActive: {
     color: COLORS.primary,

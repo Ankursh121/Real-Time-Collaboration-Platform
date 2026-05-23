@@ -8,7 +8,7 @@ import { Platform } from "react-native";
  * Otherwise, falls back to a mock login prompt.
  * @returns {Promise<{ idToken: string, email: string, name: string }>}
  */
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = async (customEmail = null) => {
   if (isConfigured && auth && Platform.OS === "web") {
     console.log("[Firebase Real Auth] Initiating Google Sign-In");
     try {
@@ -32,8 +32,8 @@ export const signInWithGoogle = async () => {
   // Fallback Mock Mode: Ask for a mock email on Web, or return a default
   console.log("[Firebase Mock Auth] Simulating Google Sign-In in offline/fallback mode");
   
-  let mockEmail = "testowner@example.com";
-  if (Platform.OS === "web") {
+  let mockEmail = customEmail || "testowner@example.com";
+  if (Platform.OS === "web" && !customEmail) {
     const enteredEmail = window.prompt(
       "Enter mock Google email for development/testing:",
       "testowner@example.com"

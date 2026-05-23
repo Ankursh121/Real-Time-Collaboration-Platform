@@ -10,6 +10,7 @@ import {
   Platform,
   Dimensions,
   TextInput,
+  Linking,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInUp, FadeInDown } from "react-native-reanimated";
@@ -174,7 +175,18 @@ export default function SubscriptionScreen({ navigation }) {
             setLoading(false);
           }
         } else {
-          Alert.alert("Checkout Redirect", "Please log in to the Worksite Pro Web dashboard to purchase/upgrade subscriptions securely.");
+          if (razorSub && razorSub.short_url) {
+            Linking.openURL(razorSub.short_url).catch((err) => {
+              Alert.alert("Error", "Could not open the payment page in your browser.");
+            });
+            Alert.alert(
+              "Redirecting to Payment",
+              "Opening Razorpay's secure checkout page in your web browser. Once payment is completed, return to this screen to verify your plan.",
+              [{ text: "OK" }]
+            );
+          } else {
+            Alert.alert("Checkout Redirect", "Please log in to the Worksite Pro Web dashboard to purchase/upgrade subscriptions securely.");
+          }
           setLoading(false);
         }
       }

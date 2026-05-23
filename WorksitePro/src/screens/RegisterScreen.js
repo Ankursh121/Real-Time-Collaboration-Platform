@@ -8,6 +8,8 @@ import {
   Platform,
   Alert,
   TouchableOpacity,
+  Modal,
+  TextInput,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
@@ -45,6 +47,8 @@ export default function RegisterScreen({ route, navigation }) {
 
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [inputEmail, setInputEmail] = useState("");
 
   // Sync route params to state if they change
   useEffect(() => {
@@ -61,10 +65,19 @@ export default function RegisterScreen({ route, navigation }) {
     }
   }, [params.idToken, params.email, params.name]);
 
-  const handleVerifyGoogle = async () => {
+  const handleVerifyGoogleClick = () => {
+    if (Platform.OS === "web") {
+      executeVerifyGoogle(null);
+    } else {
+      setInputEmail("testuser@example.com");
+      setEmailModalVisible(true);
+    }
+  };
+
+  const executeVerifyGoogle = async (customEmail = null) => {
     setLoading(true);
     try {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogle(customEmail);
       setGoogleAuth(result);
       setFormData((prev) => ({
         ...prev,
@@ -166,7 +179,7 @@ export default function RegisterScreen({ route, navigation }) {
                 </Text>
                 <FuturisticButton
                   variant="primary"
-                  onPress={handleVerifyGoogle}
+                  onPress={handleVerifyGoogleClick}
                   disabled={loading}
                   icon={<Ionicons name="logo-google" size={16} color="#fff" />}
                   style={styles.verifyBtn}
@@ -276,6 +289,58 @@ export default function RegisterScreen({ route, navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={emailModalVisible}
+        onRequestClose={() => setEmailModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <GlassCard level={3} style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="logo-google" size={28} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Google Identity</Text>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Please enter the Google account email address you wish to link.
+            </Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. email@gmail.com"
+              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+              value={inputEmail}
+              onChangeText={setInputEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalBtnCancel]} 
+                onPress={() => setEmailModalVisible(false)}
+              >
+                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalBtnConfirm]} 
+                onPress={() => {
+                  if (!inputEmail || !inputEmail.includes("@")) {
+                    Alert.alert("Validation Error", "Please enter a valid email address.");
+                    return;
+                  }
+                  setEmailModalVisible(false);
+                  executeVerifyGoogle(inputEmail.trim());
+                }}
+              >
+                <Text style={styles.modalBtnTextConfirm}>Link</Text>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        </View>
+      </Modal>
     </ScreenWrapper>
   );
 }
@@ -401,5 +466,75 @@ const styles = StyleSheet.create({
   typeBtnTextActive: { color: "#fff" },
   submitBtn: {
     marginTop: 24,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(10, 10, 15, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContainer: {
+    width: "100%",
+    maxWidth: 340,
+    padding: 24,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: "rgba(124, 111, 247, 0.3)",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: COLORS.foreground,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  modalSubtitle: {
+    color: COLORS.mutedForeground,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalInput: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    color: COLORS.foreground,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnCancel: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  modalBtnConfirm: {
+    backgroundColor: COLORS.primary,
+  },
+  modalBtnTextCancel: {
+    color: COLORS.foreground,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  modalBtnTextConfirm: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "800",
   },
 });
