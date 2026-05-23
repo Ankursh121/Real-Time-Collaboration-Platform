@@ -14,7 +14,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import { COLORS, RADIUS } from "../theme/colors";
-import { signInWithGoogle } from "../services/firebaseAuth";
+import { signInWithGoogle, authenticateWithEmailAndPassword } from "../services/firebaseAuth";
 import ScreenWrapper from "../components/ScreenWrapper";
 import GlassCard from "../components/GlassCard";
 import FuturisticButton from "../components/FuturisticButton";
@@ -49,6 +49,7 @@ export default function RegisterScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [inputEmail, setInputEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // Sync route params to state if they change
   useEffect(() => {
@@ -67,17 +68,27 @@ export default function RegisterScreen({ route, navigation }) {
 
   const handleVerifyGoogleClick = () => {
     if (Platform.OS === "web") {
-      executeVerifyGoogle(null);
+      executeVerifyGoogle(null, null);
     } else {
       setInputEmail("testuser@example.com");
+      setPassword("");
       setEmailModalVisible(true);
     }
   };
 
-  const executeVerifyGoogle = async (customEmail = null) => {
+  const executeVerifyGoogle = async (customEmail = null, customPassword = null) => {
     setLoading(true);
     try {
-      const result = await signInWithGoogle(customEmail);
+      let result;
+      if (Platform.OS === "web" && !customEmail) {
+        result = await signInWithGoogle();
+      } else {
+        result = await authenticateWithEmailAndPassword(
+          customEmail || inputEmail.trim(),
+          customPassword || password.trim(),
+          true
+        );
+      }
       setGoogleAuth(result);
       setFormData((prev) => ({
         ...prev,
@@ -299,11 +310,11 @@ export default function RegisterScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <GlassCard level={3} style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Ionicons name="logo-google" size={28} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Google Identity</Text>
+              <Ionicons name="lock-closed" size={28} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Firebase Identity</Text>
             </View>
             <Text style={styles.modalSubtitle}>
-              Please enter the Google account email address you wish to link.
+              Please enter your email and password to securely link your account.
             </Text>
             
             <TextInput
@@ -313,6 +324,17 @@ export default function RegisterScreen({ route, navigation }) {
               value={inputEmail}
               onChangeText={setInputEmail}
               keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <TextInput
+              style={[styles.modalInput, { marginBottom: 24 }]}
+              placeholder="Enter Password"
+              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={true}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -331,8 +353,12 @@ export default function RegisterScreen({ route, navigation }) {
                     Alert.alert("Validation Error", "Please enter a valid email address.");
                     return;
                   }
+                  if (!password || password.length < 6) {
+                    Alert.alert("Validation Error", "Password must be at least 6 characters.");
+                    return;
+                  }
                   setEmailModalVisible(false);
-                  executeVerifyGoogle(inputEmail.trim());
+                  executeVerifyGoogle(inputEmail.trim(), password.trim());
                 }}
               >
                 <Text style={styles.modalBtnTextConfirm}>Link</Text>

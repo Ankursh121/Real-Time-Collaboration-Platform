@@ -15,7 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import { COLORS, RADIUS } from "../theme/colors";
-import { signInWithGoogle } from "../services/firebaseAuth";
+import { signInWithGoogle, authenticateWithEmailAndPassword } from "../services/firebaseAuth";
 import ScreenWrapper from "../components/ScreenWrapper";
 import GlassCard from "../components/GlassCard";
 import FuturisticButton from "../components/FuturisticButton";
@@ -24,23 +24,35 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [inputEmail, setInputEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [authPurpose, setAuthPurpose] = useState("login"); // "login" or "register"
   const { login } = useAuth();
 
   const startGoogleAuthFlow = (purpose) => {
     if (Platform.OS === "web") {
-      executeGoogleSignIn(purpose, null);
+      executeGoogleSignIn(purpose, null, null);
     } else {
       setAuthPurpose(purpose);
       setInputEmail("testowner@example.com");
+      setPassword("");
       setEmailModalVisible(true);
     }
   };
 
-  const executeGoogleSignIn = async (purpose, customEmail = null) => {
+  const executeGoogleSignIn = async (purpose, customEmail = null, customPassword = null) => {
     setLoading(true);
     try {
-      const { idToken, email, name } = await signInWithGoogle(customEmail);
+      let authResult;
+      if (Platform.OS === "web" && !customEmail) {
+        authResult = await signInWithGoogle();
+      } else {
+        authResult = await authenticateWithEmailAndPassword(
+          customEmail || inputEmail.trim(),
+          customPassword || password.trim(),
+          purpose === "register"
+        );
+      }
+      const { idToken, email, name } = authResult;
       
       if (purpose === "register") {
         navigation.navigate("Register", { idToken, email, name });
@@ -183,11 +195,11 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <GlassCard level={3} style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Ionicons name="logo-google" size={28} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Google Identity</Text>
+              <Ionicons name="lock-closed" size={28} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Firebase Identity</Text>
             </View>
             <Text style={styles.modalSubtitle}>
-              Please enter the Google account email address you wish to use.
+              Please enter your email and password to securely sign in.
             </Text>
             
             <TextInput
@@ -197,6 +209,17 @@ export default function LoginScreen({ navigation }) {
               value={inputEmail}
               onChangeText={setInputEmail}
               keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <TextInput
+              style={[styles.modalInput, { marginBottom: 24 }]}
+              placeholder="Enter Password"
+              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={true}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -215,8 +238,12 @@ export default function LoginScreen({ navigation }) {
                     Alert.alert("Validation Error", "Please enter a valid email address.");
                     return;
                   }
+                  if (!password || password.length < 6) {
+                    Alert.alert("Validation Error", "Password must be at least 6 characters.");
+                    return;
+                  }
                   setEmailModalVisible(false);
-                  executeGoogleSignIn(authPurpose, inputEmail.trim());
+                  executeGoogleSignIn(authPurpose, inputEmail.trim(), password.trim());
                 }}
               >
                 <Text style={styles.modalBtnTextConfirm}>Continue</Text>
