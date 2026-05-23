@@ -15,7 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import { COLORS, RADIUS } from "../theme/colors";
-import { signInWithGoogle, authenticateWithEmailAndPassword } from "../services/firebaseAuth";
+import { signInWithGoogle } from "../services/firebaseAuth";
 import ScreenWrapper from "../components/ScreenWrapper";
 import GlassCard from "../components/GlassCard";
 import FuturisticButton from "../components/FuturisticButton";
@@ -24,35 +24,31 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [inputEmail, setInputEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [showCustomEmailInput, setShowCustomEmailInput] = useState(false);
   const [authPurpose, setAuthPurpose] = useState("login"); // "login" or "register"
   const { login } = useAuth();
 
+  const googleAccounts = [
+    { name: "Ankur", email: "ankursh121@gmail.com", avatar: "A", color: "#4285F4" },
+    { name: "Worksite Owner", email: "testowner@example.com", avatar: "W", color: "#34A853" },
+    { name: "Test User", email: "testuser@example.com", avatar: "T", color: "#EA4335" },
+  ];
+
   const startGoogleAuthFlow = (purpose) => {
     if (Platform.OS === "web") {
-      executeGoogleSignIn(purpose, null, null);
+      executeGoogleSignIn(purpose, null);
     } else {
       setAuthPurpose(purpose);
-      setInputEmail("testowner@example.com");
-      setPassword("");
+      setInputEmail("");
+      setShowCustomEmailInput(false);
       setEmailModalVisible(true);
     }
   };
 
-  const executeGoogleSignIn = async (purpose, customEmail = null, customPassword = null) => {
+  const executeGoogleSignIn = async (purpose, customEmail = null) => {
     setLoading(true);
     try {
-      let authResult;
-      if (Platform.OS === "web" && !customEmail) {
-        authResult = await signInWithGoogle();
-      } else {
-        authResult = await authenticateWithEmailAndPassword(
-          customEmail || inputEmail.trim(),
-          customPassword || password.trim(),
-          purpose === "register"
-        );
-      }
-      const { idToken, email, name } = authResult;
+      const { idToken, email, name } = await signInWithGoogle(customEmail);
       
       if (purpose === "register") {
         navigation.navigate("Register", { idToken, email, name });
@@ -195,60 +191,93 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <GlassCard level={3} style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Ionicons name="lock-closed" size={28} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Firebase Identity</Text>
+              <Ionicons name="logo-google" size={28} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Choose an account</Text>
             </View>
             <Text style={styles.modalSubtitle}>
-              Please enter your email and password to securely sign in.
+              to continue to Worksite Pro
             </Text>
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. email@gmail.com"
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={inputEmail}
-              onChangeText={setInputEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
 
-            <TextInput
-              style={[styles.modalInput, { marginBottom: 24 }]}
-              placeholder="Enter Password"
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={true}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            {!showCustomEmailInput ? (
+              <View style={{ width: "100%", marginVertical: 12 }}>
+                {googleAccounts.map((account, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.accountRow}
+                    onPress={() => {
+                      setEmailModalVisible(false);
+                      executeGoogleSignIn(authPurpose, account.email);
+                    }}
+                  >
+                    <View style={[styles.avatarCircle, { backgroundColor: account.color }]}>
+                      <Text style={styles.avatarText}>{account.avatar}</Text>
+                    </View>
+                    <View style={styles.accountDetails}>
+                      <Text style={styles.accountName}>{account.name}</Text>
+                      <Text style={styles.accountEmail}>{account.email}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="rgba(255, 255, 255, 0.3)" />
+                  </TouchableOpacity>
+                ))}
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.modalBtnCancel]} 
-                onPress={() => setEmailModalVisible(false)}
-              >
-                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.modalBtnConfirm]} 
-                onPress={() => {
-                  if (!inputEmail || !inputEmail.includes("@")) {
-                    Alert.alert("Validation Error", "Please enter a valid email address.");
-                    return;
-                  }
-                  if (!password || password.length < 6) {
-                    Alert.alert("Validation Error", "Password must be at least 6 characters.");
-                    return;
-                  }
-                  setEmailModalVisible(false);
-                  executeGoogleSignIn(authPurpose, inputEmail.trim(), password.trim());
-                }}
-              >
-                <Text style={styles.modalBtnTextConfirm}>Continue</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[styles.accountRow, { borderBottomWidth: 0, marginTop: 8 }]}
+                  onPress={() => setShowCustomEmailInput(true)}
+                >
+                  <View style={[styles.avatarCircle, { backgroundColor: "rgba(255, 255, 255, 0.1)" }]}>
+                    <Ionicons name="person-add-outline" size={20} color="#fff" />
+                  </View>
+                  <View style={styles.accountDetails}>
+                    <Text style={[styles.accountName, { color: COLORS.primary }]}>Use another account</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={{ width: "100%" }}>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. email@gmail.com"
+                  placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                  value={inputEmail}
+                  onChangeText={setInputEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={[styles.modalBtn, styles.modalBtnCancel]} 
+                    onPress={() => setShowCustomEmailInput(false)}
+                  >
+                    <Text style={styles.modalBtnTextCancel}>Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.modalBtn, styles.modalBtnConfirm]} 
+                    onPress={() => {
+                      if (!inputEmail || !inputEmail.includes("@")) {
+                        Alert.alert("Validation Error", "Please enter a valid email address.");
+                        return;
+                      }
+                      setEmailModalVisible(false);
+                      executeGoogleSignIn(authPurpose, inputEmail.trim());
+                    }}
+                  >
+                    <Text style={styles.modalBtnTextConfirm}>Continue</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {!showCustomEmailInput && (
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={[styles.modalBtn, styles.modalBtnCancel, { width: "100%" }]} 
+                  onPress={() => setEmailModalVisible(false)}
+                >
+                  <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </GlassCard>
         </View>
       </Modal>
@@ -458,5 +487,37 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "800",
+  },
+  accountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
+  },
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  accountDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  accountName: {
+    color: COLORS.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  accountEmail: {
+    color: COLORS.mutedForeground,
+    fontSize: 12,
   },
 });
