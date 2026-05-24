@@ -11,6 +11,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { COLORS, FONTS } from "./src/theme/colors";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +43,20 @@ const RootNavigator = () => {
 };
 
 export default function App() {
+  React.useEffect(() => {
+    if (Platform.OS !== "web") {
+      try {
+        GoogleSignin.configure({
+          webClientId: "319787442541-m3h3k4j4l5m6n7o8p9q0r1s2t3u4v5w6.apps.googleusercontent.com",
+          offlineAccess: true,
+        });
+        console.log("[Google Sign-In] Configured successfully at startup");
+      } catch (error) {
+        console.error("[Google Sign-In] Startup configuration error:", error);
+      }
+    }
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider style={styles.root}>

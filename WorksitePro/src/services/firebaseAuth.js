@@ -7,6 +7,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 if (Platform.OS !== "web") {
   try {
     GoogleSignin.configure({
+      webClientId: "319787442541-m3h3k4j4l5m6n7o8p9q0r1s2t3u4v5w6.apps.googleusercontent.com",
       offlineAccess: true,
     });
   } catch (error) {
@@ -63,14 +64,6 @@ export const signInWithGoogle = async (customEmail = null) => {
   // Native Mobile Flow (Android & iOS)
   console.log("[Google Auth] Initiating Native Google Sign-In");
   try {
-    try {
-      GoogleSignin.configure({
-        offlineAccess: true,
-      });
-    } catch (configError) {
-      console.error("[Google Auth] Dynamic configure error:", configError);
-    }
-    
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const signInResult = await GoogleSignin.signIn();
     
