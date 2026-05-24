@@ -1,3 +1,7 @@
+# IDE / Editors
+.idea/
+.vscode/
+
 # Logs
 logs
 *.log
@@ -121,3 +125,9 @@ dist
 
 # Credentials / Private keys
 *firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+*.keystore
+*.jks
+*.pem
+*.key
