@@ -45,90 +45,99 @@ const TabIcon = ({ name, focused, label }) => (
   </View>
 );
 
-const OwnerTabs = () => (
-  <Tab.Navigator screenOptions={tabBarOptions()}>
-    <Tab.Screen
-      name="Dashboard"
-      component={OwnerDashboardScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="grid" {...p} label="Dashboard" /> }}
-    />
-    <Tab.Screen
-      name="Attendance"
-      component={AttendanceScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="calendar" {...p} label="Attendance" /> }}
-    />
-    <Tab.Screen
-      name="Payments"
-      component={PaymentScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="wallet" {...p} label="Payments" /> }}
-    />
-    <Tab.Screen
-      name="Rates"
-      component={RateManagementScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="cash" {...p} label="Rates" /> }}
-    />
-    <Tab.Screen
-      name="Sites"
-      component={SiteStack}
-      options={{ tabBarIcon: (p) => <TabIcon name="business" {...p} label="Sites" /> }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="person" {...p} label="Profile" /> }}
-    />
-  </Tab.Navigator>
-);
+const OwnerTabs = () => {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tab.Navigator screenOptions={tabBarOptions(insets)}>
+      <Tab.Screen
+        name="Dashboard"
+        component={OwnerDashboardScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="grid" {...p} label="Dash" /> }}
+      />
+      <Tab.Screen
+        name="Attendance"
+        component={AttendanceScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="calendar" {...p} label="Attend" /> }}
+      />
+      <Tab.Screen
+        name="Payments"
+        component={PaymentScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="wallet" {...p} label="Pay" /> }}
+      />
+      <Tab.Screen
+        name="Rates"
+        component={RateManagementScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="cash" {...p} label="Rates" /> }}
+      />
+      <Tab.Screen
+        name="Sites"
+        component={SiteStack}
+        options={{ tabBarIcon: (p) => <TabIcon name="business" {...p} label="Sites" /> }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="person" {...p} label="Profile" /> }}
+      />
+    </Tab.Navigator>
+  );
+};
 
-const AdminTabs = () => (
-  <Tab.Navigator screenOptions={tabBarOptions()}>
-    <Tab.Screen
-      name="Dashboard"
-      component={OwnerDashboardScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="grid" {...p} label="Dashboard" /> }}
-    />
-    <Tab.Screen
-      name="Attendance"
-      component={AttendanceScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="calendar" {...p} label="Attendance" /> }}
-    />
-    <Tab.Screen
-      name="Payments"
-      component={PaymentScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="wallet" {...p} label="Payments" /> }}
-    />
-    <Tab.Screen
-      name="Sites"
-      component={SiteStack}
-      options={{ tabBarIcon: (p) => <TabIcon name="business" {...p} label="Sites" /> }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="person" {...p} label="Profile" /> }}
-    />
-  </Tab.Navigator>
-);
+const AdminTabs = () => {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tab.Navigator screenOptions={tabBarOptions(insets)}>
+      <Tab.Screen
+        name="Dashboard"
+        component={OwnerDashboardScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="grid" {...p} label="Dash" /> }}
+      />
+      <Tab.Screen
+        name="Attendance"
+        component={AttendanceScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="calendar" {...p} label="Attend" /> }}
+      />
+      <Tab.Screen
+        name="Payments"
+        component={PaymentScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="wallet" {...p} label="Pay" /> }}
+      />
+      <Tab.Screen
+        name="Sites"
+        component={SiteStack}
+        options={{ tabBarIcon: (p) => <TabIcon name="business" {...p} label="Sites" /> }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="person" {...p} label="Profile" /> }}
+      />
+    </Tab.Navigator>
+  );
+};
 
-const WorkerTabs = () => (
-  <Tab.Navigator screenOptions={tabBarOptions()}>
-    <Tab.Screen
-      name="Dashboard"
-      component={WorkerDashboardScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="home" {...p} label="Home" /> }}
-    />
-    <Tab.Screen
-      name="Attendance"
-      component={AttendanceScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="calendar" {...p} label="Attendance" /> }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ tabBarIcon: (p) => <TabIcon name="person" {...p} label="Profile" /> }}
-    />
-  </Tab.Navigator>
-);
+const WorkerTabs = () => {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tab.Navigator screenOptions={tabBarOptions(insets)}>
+      <Tab.Screen
+        name="Dashboard"
+        component={WorkerDashboardScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="home" {...p} label="Home" /> }}
+      />
+      <Tab.Screen
+        name="Attendance"
+        component={AttendanceScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="calendar" {...p} label="Attend" /> }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarIcon: (p) => <TabIcon name="person" {...p} label="Profile" /> }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 const OwnerStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -145,22 +154,33 @@ export default function AppNavigator() {
   return <WorkerTabs />;
 }
 
-const tabBarOptions = () => ({
-  headerShown: false,
-  tabBarShowLabel: false,
-  tabBarStyle: {
-    position: "absolute",
-    backgroundColor: COLORS.glassBg,
-    borderTopColor: COLORS.border,
-    borderTopWidth: 1,
-    height: Platform.OS === "ios" ? 80 : 68,
-    paddingBottom: Platform.OS === "ios" ? 24 : 8,
-    ...SHADOW.card,
-  },
-  tabBarItemStyle: {
-    paddingTop: 8,
-  },
-});
+const tabBarOptions = (insets) => {
+  const bottomInset = insets?.bottom || 0;
+  // Calculate paddings based on platform and safe area
+  const paddingBottom = Platform.OS === "ios"
+    ? (bottomInset > 0 ? bottomInset : 24)
+    : (bottomInset > 0 ? bottomInset : 8);
+  const height = Platform.OS === "ios"
+    ? (56 + paddingBottom)
+    : (60 + paddingBottom);
+
+  return {
+    headerShown: false,
+    tabBarShowLabel: false,
+    tabBarStyle: {
+      position: "absolute",
+      backgroundColor: COLORS.glassBg,
+      borderTopColor: COLORS.border,
+      borderTopWidth: 1,
+      height: height,
+      paddingBottom: paddingBottom,
+      ...SHADOW.card,
+    },
+    tabBarItemStyle: {
+      paddingTop: 8,
+    },
+  };
+};
 
 const styles = StyleSheet.create({
   tabItem: {
