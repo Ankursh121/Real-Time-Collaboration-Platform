@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "319787442541",
+    "project_id": "worksitepro-94df4",
+    "storage_bucket": "worksitepro-94df4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319787442541:android:fe679166c9bb13162bfa64",
+        "android_client_info": {
+          "package_name": "com.worksitepro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "319787442541-p8o6bhgjculq4nst28bvpcval7gtov4n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.worksitepro",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "319787442541-c89jrk04vkl1o77i21do3gcro83sfooi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-K-zX8Wp0B-vwGFkH7Adza3pKprdOgAg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "319787442541-c89jrk04vkl1o77i21do3gcro83sfooi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
