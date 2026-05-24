@@ -1,5 +1,27 @@
 import jwt from "jsonwebtoken";
 import ApiError from "../utils/ApiError.js";
+import https from "https";
+
+// Helper for HTTPS requests (compat for all Node versions without global fetch)
+const httpsGet = (url) => {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error("Invalid JSON response"));
+          }
+        } else {
+          reject(new Error(`Status ${res.statusCode}: ${data}`));
+        }
+      });
+    }).on("error", (err) => { reject(err); });
+  });
+};
 
 // Helper to normalize phone to 10-digit number
 export const normalizePhone = (phone) => {
@@ -71,11 +93,7 @@ export const verifyFirebaseToken = async (firebaseToken) => {
       if (isGoogleToken) {
         console.log("[Firebase Verification] Detected Google ID token. Verifying via Google APIs...");
         try {
-          const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${firebaseToken}`);
-          if (!response.ok) {
-            throw new Error(`Google tokeninfo API returned status ${response.status}`);
-          }
-          const googleData = await response.json();
+          const googleData = await httpsGet(`https://oauth2.googleapis.com/tokeninfo?id_token=${firebaseToken}`);
           if (googleData.error) {
             throw new Error(googleData.error_description || googleData.error);
           }
