@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
 import React from "react";
-import { View, ActivityIndicator, StyleSheet, StatusBar, Platform } from "react-native";
+import { View, ActivityIndicator, StyleSheet, StatusBar, Platform, Image } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -21,9 +21,14 @@ const RootNavigator = () => {
   if (loading) {
     return (
       <View style={styles.splash}>
-        <View style={styles.splashLogo}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.splashLogoContainer}>
+          <Image
+            source={require("./assets/App_Front_Logo.png")}
+            style={styles.splashLogoImage}
+            resizeMode="contain"
+          />
         </View>
+        <ActivityIndicator size="large" color={COLORS.primary} style={styles.splashLoader} />
       </View>
     );
   }
@@ -47,7 +52,7 @@ export default function App() {
     if (Platform.OS !== "web") {
       try {
         GoogleSignin.configure({
-          webClientId: "319787442541-m3h3k4j4l5m6n7o8p9q0r1s2t3u4v5w6.apps.googleusercontent.com",
+          webClientId: "319787442541-c89jrk04vkl1o77i21do3gcro83sfooi.apps.googleusercontent.com",
           offlineAccess: true,
         });
         console.log("[Google Sign-In] Configured successfully at startup");
@@ -103,12 +108,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  splashLogo: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryLight,
+  splashLogoContainer: {
+    width: 140,
+    height: 140,
     alignItems: "center",
     justifyContent: "center",
+  },
+  splashLogoImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 28,
+  },
+  splashLoader: {
+    marginTop: 24,
   },
 });

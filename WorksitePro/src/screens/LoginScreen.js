@@ -130,7 +130,7 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.brandRow}>
             <View style={styles.logo3D}>
               <Image 
-                source={require("../../assets/App_logo.jpg")} 
+                source={require("../../assets/App_Front_Logo.png")} 
                 style={styles.logoImage} 
                 resizeMode="cover"
               />

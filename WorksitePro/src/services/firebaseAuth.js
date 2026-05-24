@@ -7,7 +7,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 if (Platform.OS !== "web") {
   try {
     GoogleSignin.configure({
-      webClientId: "319787442541-m3h3k4j4l5m6n7o8p9q0r1s2t3u4v5w6.apps.googleusercontent.com",
+      webClientId: "319787442541-c89jrk04vkl1o77i21do3gcro83sfooi.apps.googleusercontent.com",
       offlineAccess: true,
     });
   } catch (error) {
