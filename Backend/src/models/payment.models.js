@@ -1,0 +1,82 @@
+import mongoose from "mongoose";
+
+const paymentSchema = new mongoose.Schema(
+  {
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true, // contractor
+    },
+
+    workerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    siteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Site",
+    },
+
+    periodStart: {
+      type: Date,
+      required: true,
+    },
+
+    periodEnd: {
+      type: Date,
+      required: true,
+    },
+
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    paidAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    status: {
+      type: String,
+      enum: ["Pending", "Partial", "Paid"],
+      default: "Pending",
+    },
+
+    paymentDate: {
+      type: Date,
+    },
+
+    paymentMode: {
+      type: String,
+      enum: ["CASH", "UPI", "BANK"],
+    },
+
+    referenceId: {
+      type: String, // UTR / cheque / txn id
+    },
+
+    remark: {
+      type: String,
+      trim: true,
+    },
+    
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+    
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  { timestamps: true }
+);
+
+const Payment = mongoose.model("Payment", paymentSchema);
+export default Payment;
