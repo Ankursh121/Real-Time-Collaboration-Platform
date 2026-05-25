@@ -22,21 +22,18 @@ import FuturisticButton from "../components/FuturisticButton";
 
 export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
-  const [emailModalVisible, setEmailModalVisible] = useState(false);
-  const [inputEmail, setInputEmail] = useState("");
-  const [showCustomEmailInput, setShowCustomEmailInput] = useState(false);
   const [authPurpose, setAuthPurpose] = useState("login"); // "login" or "register"
   const { login } = useAuth();
 
   const startGoogleAuthFlow = (purpose) => {
     setAuthPurpose(purpose);
-    executeGoogleSignIn(purpose, null);
+    executeGoogleSignIn(purpose);
   };
 
-  const executeGoogleSignIn = async (purpose, customEmail = null) => {
+  const executeGoogleSignIn = async (purpose) => {
     setLoading(true);
     try {
-      const { idToken, email, name } = await signInWithGoogle(customEmail);
+      const { idToken, email, name } = await signInWithGoogle();
       
       if (purpose === "register") {
         navigation.navigate("Register", { idToken, email, name });
@@ -89,27 +86,10 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      if (Platform.OS !== "web" && !customEmail) {
-        Alert.alert(
-          "Google Sign-In Error",
-          `${e.message || "Failed to connect to Google Services."}\n\nWould you like to use a manual mock email for testing?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { 
-              text: "Use Mock Email", 
-              onPress: () => {
-                setInputEmail("testowner@example.com");
-                setEmailModalVisible(true);
-              } 
-            }
-          ]
-        );
-      } else {
-        Alert.alert(
-          "Authentication Error",
-          e.response?.data?.message || e.message || "Failed to authenticate with Google"
-        );
-      }
+      Alert.alert(
+        "Google Sign-In Error",
+        e.response?.data?.message || e.message || "Failed to connect to Google Services."
+      );
     } finally {
       setLoading(false);
     }
@@ -188,57 +168,7 @@ export default function LoginScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={emailModalVisible}
-        onRequestClose={() => setEmailModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <GlassCard level={3} style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="logo-google" size={28} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Mock Google Sign-In</Text>
-            </View>
-            <Text style={styles.modalSubtitle}>
-              Please enter the mock Google account email address you wish to use.
-            </Text>
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. email@gmail.com"
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={inputEmail}
-              onChangeText={setInputEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.modalBtnCancel]} 
-                onPress={() => setEmailModalVisible(false)}
-              >
-                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.modalBtnConfirm]} 
-                onPress={() => {
-                  if (!inputEmail || !inputEmail.includes("@")) {
-                    Alert.alert("Validation Error", "Please enter a valid email address.");
-                    return;
-                  }
-                  setEmailModalVisible(false);
-                  executeGoogleSignIn(authPurpose, inputEmail.trim());
-                }}
-              >
-                <Text style={styles.modalBtnTextConfirm}>Continue</Text>
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
-        </View>
-      </Modal>
     </ScreenWrapper>
   );
 }

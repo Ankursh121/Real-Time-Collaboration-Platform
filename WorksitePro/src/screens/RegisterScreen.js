@@ -47,15 +47,6 @@ export default function RegisterScreen({ route, navigation }) {
 
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [emailModalVisible, setEmailModalVisible] = useState(false);
-  const [inputEmail, setInputEmail] = useState("");
-  const [showCustomEmailInput, setShowCustomEmailInput] = useState(false);
-
-  const googleAccounts = [
-    { name: "Ankur", email: "ankursh121@gmail.com", avatar: "A", color: "#4285F4" },
-    { name: "Worksite Owner", email: "testowner@example.com", avatar: "W", color: "#34A853" },
-    { name: "Test User", email: "testuser@example.com", avatar: "T", color: "#EA4335" },
-  ];
 
   // Sync route params to state if they change
   useEffect(() => {
@@ -73,13 +64,13 @@ export default function RegisterScreen({ route, navigation }) {
   }, [params.idToken, params.email, params.name]);
 
   const handleVerifyGoogleClick = () => {
-    executeVerifyGoogle(null);
+    executeVerifyGoogle();
   };
 
-  const executeVerifyGoogle = async (customEmail = null) => {
+  const executeVerifyGoogle = async () => {
     setLoading(true);
     try {
-      const result = await signInWithGoogle(customEmail);
+      const result = await signInWithGoogle();
       setGoogleAuth(result);
       setFormData((prev) => ({
         ...prev,
@@ -92,27 +83,10 @@ export default function RegisterScreen({ route, navigation }) {
         return;
       }
       
-      if (Platform.OS !== "web" && !customEmail) {
-        Alert.alert(
-          "Google Sign-In Error",
-          `${e.message || "Failed to connect to Google Services."}\n\nWould you like to use a manual mock email for testing?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { 
-              text: "Use Mock Email", 
-              onPress: () => {
-                setInputEmail("testuser@example.com");
-                setEmailModalVisible(true);
-              } 
-            }
-          ]
-        );
-      } else {
-        Alert.alert(
-          "Verification Failed",
-          e.response?.data?.message || e.message || "Failed to authenticate Google identity"
-        );
-      }
+      Alert.alert(
+        "Google Sign-In Error",
+        e.response?.data?.message || e.message || "Failed to authenticate Google identity"
+      );
     } finally {
       setLoading(false);
     }
@@ -316,57 +290,7 @@ export default function RegisterScreen({ route, navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={emailModalVisible}
-        onRequestClose={() => setEmailModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <GlassCard level={3} style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="logo-google" size={28} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Mock Google Verification</Text>
-            </View>
-            <Text style={styles.modalSubtitle}>
-              Please enter the mock Google account email address you wish to verify.
-            </Text>
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. email@gmail.com"
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={inputEmail}
-              onChangeText={setInputEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.modalBtnCancel]} 
-                onPress={() => setEmailModalVisible(false)}
-              >
-                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.modalBtnConfirm]} 
-                onPress={() => {
-                  if (!inputEmail || !inputEmail.includes("@")) {
-                    Alert.alert("Validation Error", "Please enter a valid email address.");
-                    return;
-                  }
-                  setEmailModalVisible(false);
-                  executeVerifyGoogle(inputEmail.trim());
-                }}
-              >
-                <Text style={styles.modalBtnTextConfirm}>Continue</Text>
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
-        </View>
-      </Modal>
     </ScreenWrapper>
   );
 }

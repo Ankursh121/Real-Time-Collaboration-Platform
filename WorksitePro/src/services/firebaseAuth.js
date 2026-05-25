@@ -21,7 +21,7 @@ if (Platform.OS !== "web") {
  * On Web, uses Google Sign-In with popup.
  * @returns {Promise<{ idToken: string, email: string, name: string }>}
  */
-export const signInWithGoogle = async (customEmail = null) => {
+export const signInWithGoogle = async () => {
   if (Platform.OS === "web") {
     if (isConfigured && auth) {
       console.log("[Firebase Real Auth] Initiating Web Google Sign-In");
@@ -43,22 +43,7 @@ export const signInWithGoogle = async (customEmail = null) => {
       }
     }
 
-    // Fallback Mock Mode for Web if not configured
-    let mockEmail = customEmail || "testowner@example.com";
-    const enteredEmail = window.prompt(
-      "Enter mock Google email for development/testing:",
-      mockEmail
-    );
-    if (enteredEmail === null) {
-      throw new Error("Mock Google login cancelled by user.");
-    }
-    mockEmail = enteredEmail.trim() || mockEmail;
-    
-    return {
-      idToken: `mock-google-token-${mockEmail}`,
-      email: mockEmail,
-      name: mockEmail.split("@")[0],
-    };
+    throw new Error("Firebase Authentication is not configured on this web application.");
   }
 
   // Native Mobile Flow (Android & iOS)

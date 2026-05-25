@@ -2,9 +2,9 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import "dotenv/config";
 
-export const keyId = (process.env.RAZORPAY_KEY_ID || "rzp_test_dummy").trim();
-export const keySecret = (process.env.RAZORPAY_KEY_SECRET || "dummy_secret").trim();
-export const webhookSecret = (process.env.RAZORPAY_WEBHOOK_SECRET || "dummy_webhook_secret").trim();
+export const keyId = (process.env.RAZORPAY_KEY_ID || "").trim();
+export const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+export const webhookSecret = (process.env.RAZORPAY_WEBHOOK_SECRET || "").trim();
 
 const razorpay = new Razorpay({
   key_id: keyId,
