@@ -57,31 +57,6 @@ export const verifyFirebaseToken = async (firebaseToken) => {
     throw new ApiError(400, "Firebase ID token is required");
   }
 
-  // 1. Check for mock token (used for offline development & tests)
-  if (
-    firebaseToken.startsWith("mock-google-token-") ||
-    firebaseToken.startsWith("mock-firebase-token-") ||
-    firebaseToken === "mock-token" ||
-    firebaseToken.startsWith("mock-")
-  ) {
-    console.log(`[Firebase Verification] Bypassing via Mock Token: ${firebaseToken}`);
-    let email = "mockuser@example.com";
-    if (firebaseToken.startsWith("mock-google-token-")) {
-      email = firebaseToken.replace("mock-google-token-", "");
-    } else if (firebaseToken.startsWith("mock-firebase-token-")) {
-      const parts = firebaseToken.replace("mock-firebase-token-", "");
-      email = parts.includes("@") ? parts : `${parts}@example.com`;
-    } else if (firebaseToken.startsWith("mock-")) {
-      const parts = firebaseToken.replace("mock-", "");
-      email = parts.includes("@") ? parts : `${parts}@example.com`;
-    }
-
-    return {
-      email: email.toLowerCase(),
-      firebaseUid: `mock-uid-${email}`,
-      name: email.split("@")[0],
-    };
-  }
 
   // 2. Detect and verify direct Google ID tokens (if client-side Firebase Auth was bypassed/failed)
   try {

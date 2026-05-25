@@ -8,6 +8,18 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const setUserAndCache = (newVal) => {
+    setUser((prev) => {
+      const resolved = typeof newVal === "function" ? newVal(prev) : newVal;
+      if (resolved) {
+        AsyncStorage.setItem("userData", JSON.stringify(resolved)).catch(() => {});
+      } else {
+        AsyncStorage.removeItem("userData").catch(() => {});
+      }
+      return resolved;
+    });
+  };
+
   const checkUser = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
@@ -16,13 +28,34 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
-      const res = await API.get("/auth/me");
-      if (res.data.success) {
-        setUser(res.data.data);
+
+      // Optimistic load from storage to bypass cold-start delays
+      const cached = await AsyncStorage.getItem("userData");
+      if (cached) {
+        setUser(JSON.parse(cached));
+        setLoading(false);
+      }
+
+      // Perform verification in the background
+      try {
+        const res = await API.get("/auth/me");
+        if (res.data.success) {
+          const freshUser = res.data.data;
+          setUser(freshUser);
+          await AsyncStorage.setItem("userData", JSON.stringify(freshUser));
+        }
+      } catch (err) {
+        const isUnauthorized = err.response?.status === 401 || err.response?.status === 403;
+        if (isUnauthorized) {
+          setUser(null);
+          await AsyncStorage.removeItem("authToken");
+          await AsyncStorage.removeItem("userData");
+        }
       }
     } catch {
       setUser(null);
       await AsyncStorage.removeItem("authToken");
+      await AsyncStorage.removeItem("userData");
     } finally {
       setLoading(false);
     }
@@ -35,6 +68,9 @@ export const AuthProvider = ({ children }) => {
   const completeAuth = async (u, accessToken) => {
     if (accessToken) {
       await AsyncStorage.setItem("authToken", accessToken);
+    }
+    if (u) {
+      await AsyncStorage.setItem("userData", JSON.stringify(u));
     }
     setUser(u);
     return u;
@@ -56,12 +92,13 @@ export const AuthProvider = ({ children }) => {
       await API.post("/auth/logout");
     } catch {}
     await AsyncStorage.removeItem("authToken");
+    await AsyncStorage.removeItem("userData");
     setUser(null);
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, setUser, loading, login, logout, checkUser, completeAuth }}
+      value={{ user, setUser: setUserAndCache, loading, login, logout, checkUser, completeAuth }}
     >
       {children}
     </AuthContext.Provider>
