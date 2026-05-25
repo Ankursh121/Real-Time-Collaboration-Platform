@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx expo export",
+  "buildCommand": "npx expo export && node patch-html.js",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
