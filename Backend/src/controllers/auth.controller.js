@@ -132,7 +132,11 @@ export const verifyOTP = asyncHandler(async (req, res) => {
             if (name) existingUserByPhone.name = name;
             existingUserByPhone.role = role;
             existingUserByPhone.workerType = (workerType && workerType.trim() !== "") ? workerType.trim() : undefined;
-            existingUserByPhone.status = role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING;
+            if (!existingUserByPhone.ownerId) {
+              existingUserByPhone.status = role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING;
+            } else {
+              existingUserByPhone.status = UserStatus.ACTIVE;
+            }
             user = existingUserByPhone;
           } else {
             throw new ApiError(409, "This phone number is already registered with another Google account");
