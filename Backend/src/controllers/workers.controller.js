@@ -12,10 +12,11 @@ import bcrypt from "bcrypt";
 
 
 export const registerWorker = asyncHandler(async (req, res) => {
-  const { name, phone, gender, workerType, password, inviteCode } = req.body;
+  const { name, phone, gender, workerType, password, inviteCode } = req.body || {}; // Ensure safe destructuring
 
+  // Validate required fields (inviteCode is optional)
   if (
-    [name, phone, gender, workerType, password, inviteCode].some(
+    [name, phone, gender, workerType, password].some(
       (field) => !field || field.trim() === ""
     )
   ) {
@@ -28,13 +29,14 @@ export const registerWorker = asyncHandler(async (req, res) => {
   }
 
 
-  const owner = await User.findOne({
-    inviteCode,
-    role: UserRoles.OWNER,
-  });
-
-  if (!owner) {
-    throw new ApiError(400, "Invalid contractor invite code");
+  // Owner is optional – if an invite code is supplied, attach the worker to that owner.
+  let ownerId = null;
+  if (inviteCode) {
+    const owner = await User.findOne({ inviteCode, role: UserRoles.OWNER });
+    if (!owner) {
+      throw new ApiError(400, "Invalid contractor invite code");
+    }
+    ownerId = owner._id;
   }
 
 
@@ -66,7 +68,7 @@ export const registerWorker = asyncHandler(async (req, res) => {
     aadhar: aadharUpload?.url || "",
     role: UserRoles.WORKER,
     status: UserStatus.PENDING,
-    ownerId: owner._id,
+    ownerId: ownerId,
   });
 
   const createdWorker = await User.findById(worker._id).select(
