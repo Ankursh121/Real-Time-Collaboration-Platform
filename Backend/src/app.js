@@ -14,17 +14,30 @@ const app = express();
 
 app.use(morgan("dev"));
 
+const allowedOrigins = [
+  process.env.CORS_ORIGIN,
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:8081", // React Native Web
+  "http://localhost:8082", // React Native Web Alternate Port
+  "http://10.0.2.2:8081", // Android Emulator
+  "http://10.2.1.9:8081", // Physical Device Testing
+  "https://real-time-collaboration-platform-zeta.vercel.app",
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      process.env.CORS_ORIGIN,
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "http://localhost:8081", // React Native Web
-      "http://localhost:8082", // React Native Web Alternate Port
-      "http://10.0.2.2:8081", // Android Emulator
-      "http://10.2.1.9:8081", // Physical Device Testing
-    ],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      // Allow exact matches
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow any Vercel preview URL for this project
+      if (origin.match(/^https:\/\/real-time-collaboration-platform.*\.vercel\.app$/)) {
+        return callback(null, true);
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
