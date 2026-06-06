@@ -12,6 +12,7 @@ import { upload } from "../middlewares/Multer.middleware.js";
 
 const router = express.Router();
 
+// OTP based endpoints
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp", verifyOTP);
 router.post("/logout", verifyJWT, logoutUser);

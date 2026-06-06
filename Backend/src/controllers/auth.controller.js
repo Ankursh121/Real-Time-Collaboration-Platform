@@ -55,13 +55,22 @@ export const sendOTP = asyncHandler(async (req, res) => {
   if (!user) {
     // Special case for registration: Create a preliminary record to hold the OTP
     // We only reach here if isRegistration is true and user was null
-    user = await User.create({
-      phone,
-      name: "Temp",
-      gender: "Others",
-      role: UserRoles.WORKER,
-      status: UserStatus.PENDING,
-    });
+    try {
+      user = await User.create({
+        phone,
+        name: "Temp",
+        gender: "Others",
+        role: UserRoles.WORKER,
+        status: UserStatus.PENDING,
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        user = await User.findOne({ phone });
+        if (!user) throw err;
+      } else {
+        throw err;
+      }
+    }
   }
 
   user.OTP = otp;
@@ -131,7 +140,11 @@ export const verifyOTP = asyncHandler(async (req, res) => {
             existingUserByPhone.email = email;
             if (name) existingUserByPhone.name = name;
             existingUserByPhone.role = role;
-            existingUserByPhone.workerType = (workerType && workerType.trim() !== "") ? workerType.trim() : undefined;
+            if (workerType && workerType.trim() !== "") {
+              existingUserByPhone.workerType = workerType.trim();
+            } else {
+              existingUserByPhone.workerType = undefined;
+            }
             if (!existingUserByPhone.ownerId) {
               existingUserByPhone.status = role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING;
             } else {
@@ -142,16 +155,25 @@ export const verifyOTP = asyncHandler(async (req, res) => {
             throw new ApiError(409, "This phone number is already registered with another Google account");
           }
         } else {
-          user = await User.create({
-            phone,
-            name: name || decodedName || email.split("@")[0],
-            email,
-            firebaseUid,
-            role,
-            workerType: (workerType && workerType.trim() !== "") ? workerType.trim() : undefined,
-            gender: "Others", // default gender since DB schema requires it
-            status: role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING,
-          });
+          try {
+            user = await User.create({
+              phone,
+              name: name || decodedName || email.split("@")[0],
+              email,
+              firebaseUid,
+              role,
+              ...(workerType && workerType.trim() !== "" ? { workerType: workerType.trim() } : {}),
+              gender: "Others", // default gender since DB schema requires it
+              status: role === UserRoles.OWNER ? UserStatus.ACTIVE : UserStatus.PENDING,
+            });
+          } catch (err) {
+            if (err.code === 11000) {
+              user = await User.findOne({ phone });
+              if (!user) throw err;
+            } else {
+              throw err;
+            }
+          }
         }
       } else {
         // Not a registration request (just a login attempt). Return 404.
@@ -208,6 +230,8 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     }
     if (workerType && workerType.trim() !== "") {
       user.workerType = workerType.trim();
+    } else if (workerType === "" || workerType?.trim() === "") {
+      user.workerType = undefined;
     }
   }
 
