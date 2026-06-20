@@ -12,8 +12,8 @@ import { isOwner, isAdminOrOwner } from "../middlewares/role.middleware.js";
 
 const router = express.Router();
 
-router.post("/generate", verifyJWT, isOwner, generatePayment);
-router.patch("/pay/:paymentId", verifyJWT, isOwner, updatePaymentStatus);
+router.post("/generate", verifyJWT, isAdminOrOwner, generatePayment);
+router.patch("/pay/:paymentId", verifyJWT, isAdminOrOwner, updatePaymentStatus);
 router.post("/direct-pay", verifyJWT, isAdminOrOwner, recordManualPayment);
 router.get("/", verifyJWT, isAdminOrOwner, getAllPayments);
 router.get("/summary", verifyJWT, isAdminOrOwner, getWorkerPaymentSummary);

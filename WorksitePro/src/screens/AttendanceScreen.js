@@ -44,6 +44,14 @@ export default function AttendanceScreen() {
   const [viewType, setViewType] = useState("calendar"); // 'calendar' or 'list'
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [workerProfile, setWorkerProfile] = useState(null);
+  const [customRate, setCustomRate] = useState("");
+  const [isUpdatingRate, setIsUpdatingRate] = useState(false);
+  const [showAddFamily, setShowAddFamily] = useState(false);
+  const [familyForm, setFamilyForm] = useState({ name: "", gender: "Male", workerType: "Labour", DailyRate: "" });
+  const [isAddingFamily, setIsAddingFamily] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -75,17 +83,203 @@ export default function AttendanceScreen() {
     setHistoryWorker(worker);
     setHistoryModal(true);
     setFetchingHistory(true);
+    setCustomRate(String(worker.DailyRate || ""));
+    setFamilyMembers([]);
+    setWorkerProfile(worker);
     try {
       const res = await API.get(`/attendance/history/${worker._id}`);
       if (res.data.success) {
         setHistoryLogs(res.data.data.attendance || []);
         setPaymentLogs(res.data.data.payments || []);
+        setFamilyMembers(res.data.data.familyMembers || []);
+        if (res.data.data.workerProfile) {
+          setWorkerProfile(res.data.data.workerProfile);
+          setCustomRate(String(res.data.data.workerProfile.DailyRate || ""));
+        }
       }
     } catch {
       Alert.alert("Error", "Failed to load worker history.");
     } finally {
       setFetchingHistory(false);
     }
+  };
+
+  const handleUpdateRate = async () => {
+    if (!workerProfile) return;
+    try {
+      setIsUpdatingRate(true);
+      const res = await API.patch(`/owners/update-profile/${workerProfile._id}`, {
+        DailyRate: Number(customRate) || 0
+      });
+      if (res.data.success) {
+        Alert.alert("Success", "Worker rate updated successfully.");
+        setWorkerProfile(res.data.data);
+      }
+    } catch (e) {
+      Alert.alert("Error", e.response?.data?.message || "Failed to update rate.");
+    } finally {
+      setIsUpdatingRate(false);
+    }
+  };
+
+  const handleAddFamilyMember = async () => {
+    if (!workerProfile) return;
+    if (!familyForm.name) return Alert.alert("Missing field", "Please enter member name.");
+    try {
+      setIsAddingFamily(true);
+      const res = await API.post(`/owners/workers/${workerProfile._id}/family`, {
+        name: familyForm.name,
+        gender: familyForm.gender,
+        workerType: familyForm.workerType,
+        DailyRate: Number(familyForm.DailyRate) || 0
+      });
+      if (res.data.success) {
+        Alert.alert("Success", "Family member added successfully.");
+        openHistory(workerProfile);
+        setFamilyForm({ name: "", gender: "Male", workerType: "Labour", DailyRate: "" });
+        setShowAddFamily(false);
+      }
+    } catch (e) {
+      Alert.alert("Error", e.response?.data?.message || "Failed to add family member.");
+    } finally {
+      setIsAddingFamily(false);
+    }
+  };
+
+  const renderProfileView = () => {
+    return (
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+        {/* Custom Rate Section */}
+        <View style={styles.profileSection}>
+          <Text style={styles.profileSecTitle}>Worker Daily Rate</Text>
+          <Text style={styles.profileSecDesc}>
+            Set a custom wage rate for this worker. Overtime value will be auto-calculated as Rate/8.
+          </Text>
+          <View style={styles.rateRow}>
+            <TextInput
+              style={styles.rateInput}
+              placeholder="Enter daily rate (e.g. 500)"
+              placeholderTextColor={COLORS.mutedForeground}
+              keyboardType="numeric"
+              value={customRate}
+              onChangeText={setCustomRate}
+            />
+            <TouchableOpacity 
+              style={styles.rateBtn} 
+              onPress={handleUpdateRate}
+              disabled={isUpdatingRate}
+            >
+              <Text style={styles.rateBtnText}>{isUpdatingRate ? "Saving..." : "Save Rate"}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Family Members Section */}
+        <View style={[styles.profileSection, { marginTop: 24 }]}>
+          <View style={styles.familyHeaderRow}>
+            <Text style={styles.profileSecTitle}>Family Members ({familyMembers.length})</Text>
+            {!showAddFamily && (
+              <TouchableOpacity onPress={() => setShowAddFamily(true)} style={styles.addFamilyTextBtn}>
+                <Text style={styles.addFamilyTextBtnText}>+ Add Member</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {showAddFamily && (
+            <GlassCard level={2} style={styles.familyFormCard}>
+              <Text style={styles.formTitle}>New Family Member</Text>
+              
+              <Text style={styles.formLabel}>Full Name</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Member Name"
+                placeholderTextColor={COLORS.mutedForeground}
+                value={familyForm.name}
+                onChangeText={(v) => setFamilyForm({ ...familyForm, name: v })}
+              />
+
+              <View style={styles.formRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.formLabel}>Gender</Text>
+                  <View style={styles.pillContainer}>
+                    {["Male", "Female"].map(g => (
+                      <TouchableOpacity
+                        key={g}
+                        style={[styles.formPill, familyForm.gender === g && styles.formPillActive]}
+                        onPress={() => setFamilyForm({ ...familyForm, gender: g })}
+                      >
+                        <Text style={[styles.formPillText, familyForm.gender === g && styles.formPillTextActive]}>{g}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.formLabel}>Worker Type</Text>
+                  <View style={styles.pillContainer}>
+                    {["Labour", "Mistri"].map(t => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.formPill, familyForm.workerType === t && styles.formPillActive]}
+                        onPress={() => setFamilyForm({ ...familyForm, workerType: t })}
+                      >
+                        <Text style={[styles.formPillText, familyForm.workerType === t && styles.formPillTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <Text style={styles.formLabel}>Daily Rate (Optional)</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Default uses site/global rate"
+                placeholderTextColor={COLORS.mutedForeground}
+                keyboardType="numeric"
+                value={familyForm.DailyRate}
+                onChangeText={(v) => setFamilyForm({ ...familyForm, DailyRate: v })}
+              />
+
+              <View style={styles.formActions}>
+                <TouchableOpacity 
+                  style={[styles.formBtn, styles.cancelBtn]} 
+                  onPress={() => setShowAddFamily(false)}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.formBtn, styles.saveFormBtn]} 
+                  onPress={handleAddFamilyMember}
+                  disabled={isAddingFamily}
+                >
+                  <Text style={styles.saveFormBtnText}>{isAddingFamily ? "Adding..." : "Add"}</Text>
+                </TouchableOpacity>
+              </View>
+            </GlassCard>
+          )}
+
+          {familyMembers.length > 0 ? (
+            familyMembers.map((member) => (
+              <GlassCard level={2} key={member._id} style={styles.memberCard}>
+                <View style={styles.memberRow}>
+                  <View style={styles.memberAvatar}>
+                    <Text style={styles.memberAvatarText}>{member.name[0].toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName}>{member.name}</Text>
+                    <Text style={styles.memberMeta}>
+                      {member.workerType} • {member.DailyRate > 0 ? `₹${member.DailyRate}/day` : "Site Rate"}
+                    </Text>
+                  </View>
+                </View>
+              </GlassCard>
+            ))
+          ) : (
+            <Text style={styles.noFamilyText}>No family members registered under this worker.</Text>
+          )}
+        </View>
+      </ScrollView>
+    );
   };
 
   useEffect(() => { 
@@ -477,6 +671,15 @@ export default function AttendanceScreen() {
                     <Ionicons name="list" size={18} color={viewType === 'list' ? "#fff" : COLORS.mutedForeground} />
                     <Text style={[styles.switchText, viewType === 'list' && styles.switchTextActive]}>Timeline</Text>
                   </TouchableOpacity>
+                  {user?.role === "Owner" && (
+                    <TouchableOpacity 
+                      style={[styles.switchBtn, viewType === 'profile' && styles.switchBtnActive]} 
+                      onPress={() => setViewType('profile')}
+                    >
+                      <Ionicons name="people-outline" size={18} color={viewType === 'profile' ? "#fff" : COLORS.mutedForeground} />
+                      <Text style={[styles.switchText, viewType === 'profile' && styles.switchTextActive]}>Family & Rate</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {viewType === "calendar" ? (
@@ -519,12 +722,12 @@ export default function AttendanceScreen() {
                         
                         // Days of month
                         for (let d = 1; d <= end.getDate(); d++) {
-                          const dateStr = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d).toISOString().split('T')[0];
-                          const hasAttendance = historyLogs.some(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
-                          const hasPayment = paymentLogs.some(p => new Date(p.createdAt).toISOString().split('T')[0] === dateStr);
-                          
-                          const isToday = new Date().toISOString().split('T')[0] === dateStr;
-                          days.push({ day: d, hasAttendance, hasPayment, isToday });
+                           const dateStr = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d).toISOString().split('T')[0];
+                           const hasAttendance = historyLogs.some(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+                           const hasPayment = paymentLogs.some(p => new Date(p.createdAt).toISOString().split('T')[0] === dateStr);
+                           
+                           const isToday = new Date().toISOString().split('T')[0] === dateStr;
+                           days.push({ day: d, hasAttendance, hasPayment, isToday });
                         }
 
                         return days.map((item, idx) => (
@@ -564,7 +767,7 @@ export default function AttendanceScreen() {
                       </View>
                     </View>
                   </View>
-                ) : (
+                ) : viewType === "list" ? (
                   <FlatList
                     data={[
                       ...historyLogs.map(l => ({ ...l, type: 'attendance' })),
@@ -590,6 +793,7 @@ export default function AttendanceScreen() {
                             })}
                           </Text>
                           <Text style={styles.logSite}>
+                            {item.workerId?.name ? `${item.workerId.name} • ` : ""}
                             {item.type === 'attendance' ? (item.siteId?.name || "On Site") : `Disbursement recorded`}
                           </Text>
                         </View>
@@ -604,6 +808,8 @@ export default function AttendanceScreen() {
                       </View>
                     )}
                   />
+                ) : (
+                  renderProfileView()
                 )}
               </View>
             )}
@@ -974,5 +1180,209 @@ const styles = StyleSheet.create({
     color: COLORS.mutedForeground,
     fontSize: 12,
     marginTop: 2,
+  },
+  profileSection: {
+    padding: 4,
+  },
+  profileSecTitle: {
+    color: COLORS.foreground,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  profileSecDesc: {
+    color: COLORS.mutedForeground,
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  rateRow: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  rateInput: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: COLORS.foreground,
+    fontWeight: "800",
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  rateBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rateBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  familyHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  addFamilyTextBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.md,
+    backgroundColor: "rgba(124, 111, 247, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(124, 111, 247, 0.3)",
+  },
+  addFamilyTextBtnText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  familyFormCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+  },
+  formTitle: {
+    color: COLORS.foreground,
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 12,
+  },
+  formLabel: {
+    color: COLORS.mutedForeground,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  formInput: {
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: COLORS.foreground,
+    fontWeight: "700",
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    marginBottom: 12,
+  },
+  formRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  pillContainer: {
+    flexDirection: "row",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderRadius: RADIUS.md,
+    padding: 2,
+    gap: 2,
+  },
+  formPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  formPillActive: {
+    backgroundColor: COLORS.primary,
+  },
+  formPillText: {
+    color: COLORS.mutedForeground,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  formPillTextActive: {
+    color: "#fff",
+  },
+  formActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 8,
+  },
+  formBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtn: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  cancelBtnText: {
+    color: COLORS.mutedForeground,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  saveFormBtn: {
+    backgroundColor: COLORS.primary,
+  },
+  saveFormBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  memberCard: {
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+  },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  memberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.md,
+    backgroundColor: "rgba(124, 111, 247, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  memberAvatarText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    color: COLORS.foreground,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  memberMeta: {
+    color: COLORS.mutedForeground,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  noFamilyText: {
+    color: COLORS.mutedForeground,
+    fontSize: 13,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 20,
   },
 });

@@ -70,8 +70,8 @@ describe("Payment Endpoints", () => {
   describe("POST /api/payments/generate", () => {
     it("should generate payment correctly", async () => {
       // 8 hrs = 500 (daily rate)
-      // 2 hrs OT = 2 * 100 = 200
-      // Total = 700
+      // 2 hrs OT = 2 * (500 / 8) = 125
+      // Total = 625
 
       const res = await request(app)
         .post("/api/payments/generate")
@@ -84,7 +84,7 @@ describe("Payment Endpoints", () => {
         });
 
       expect(res.statusCode).toEqual(201);
-      expect(res.body.data.totalAmount).toBe(700);
+      expect(res.body.data.totalAmount).toBe(625);
       expect(res.body.data.status).toBe("Pending");
     });
   });

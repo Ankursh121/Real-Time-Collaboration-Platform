@@ -4,6 +4,7 @@ import User from "../src/models/users.models.js";
 import { UserRoles, UserStatus } from "../src/constants/user.constants.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import jwt from "jsonwebtoken";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,17 +25,7 @@ describe("Worker Endpoints", () => {
     });
     inviteCode = owner.inviteCode;
 
-    const res = await request(app)
-      .post("/api/auth/send-otp")
-      .send({ phone: "1112223333" });
-    
-    const userWithOtp = await User.findOne({ phone: "1112223333" }).select("+OTP");
-    
-    const loginRes = await request(app)
-      .post("/api/auth/verify-otp")
-      .send({ phone: "1112223333", otp: userWithOtp.OTP });
-    
-    ownerToken = loginRes.header["set-cookie"][0].split(";")[0].split("=")[1];
+    ownerToken = jwt.sign({ userId: owner._id, role: UserRoles.OWNER }, process.env.ACCESS_TOKEN_SECRET);
   });
 
   describe("POST /api/workers/register", () => {

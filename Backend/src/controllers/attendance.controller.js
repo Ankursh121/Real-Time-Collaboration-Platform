@@ -89,26 +89,48 @@ export const getWorkerAttendanceHistory = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Unauthorized access to worker data");
   }
 
+  // Find all family members
+  const familyMembers = await User.find({ parentWorkerId: workerId });
+  const ids = [workerId, ...familyMembers.map((m) => m._id)];
+
   // Calculate the date range (Last 30 days)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setHours(0, 0, 0, 0);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const history = await Attendance.find({
-    workerId,
+    workerId: { $in: ids },
     date: { $gte: thirtyDaysAgo }
   })
   .sort({ date: -1 })
+  .populate("workerId", "name phone")
   .populate("siteId", "name location");
 
   // Also fetch payments for the same period
   const payments = await Payment.find({
-    workerId,
+    workerId: { $in: ids },
     ownerId: effectiveOwnerId,
     createdAt: { $gte: thirtyDaysAgo }
-  }).sort({ createdAt: -1 });
+  })
+  .sort({ createdAt: -1 })
+  .populate("workerId", "name phone");
 
   return res.status(200).json(
-    new ApiResponse(200, { attendance: history, payments }, "Worker financial and attendance history fetched")
+    new ApiResponse(200, { 
+      attendance: history, 
+      payments,
+      familyMembers,
+      workerProfile: {
+        _id: worker._id,
+        name: worker.name,
+        phone: worker.phone,
+        workerType: worker.workerType,
+        DailyRate: worker.DailyRate,
+        photo: worker.photo,
+        aadhar: worker.aadhar,
+        status: worker.status,
+        siteId: worker.siteId,
+      }
+    }, "Worker financial and attendance history fetched")
   );
 });

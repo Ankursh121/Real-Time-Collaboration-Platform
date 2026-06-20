@@ -118,6 +118,7 @@ export const verifyFirebaseToken = async (firebaseToken) => {
   const privateKeyRaw = (process.env.FIREBASE_PRIVATE_KEY || "").trim();
 
   if (
+    process.env.NODE_ENV !== "test" &&
     firebaseAdmin &&
     projectId &&
     clientEmail &&

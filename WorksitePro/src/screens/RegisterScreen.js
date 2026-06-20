@@ -25,6 +25,7 @@ const ROLES = [
   { id: "Owner", icon: "domain", label: "Owner" },
   { id: "Admin", icon: "shield-account", label: "Admin" },
   { id: "Worker", icon: "hard-hat", label: "Worker" },
+  { id: "Subcontractor", icon: "briefcase", label: "Subcontractor" },
 ];
 
 const WORKER_TYPES = ["Labour", "Mistri", "Satring-Labour", "Satring-Mistri"];
@@ -371,9 +372,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1, 
     textTransform: "uppercase" 
   },
-  roleGrid: { flexDirection: "row", gap: 12, marginBottom: 8 },
+  roleGrid: { 
+    flexDirection: "row", 
+    flexWrap: "wrap", 
+    gap: 12, 
+    marginBottom: 8 
+  },
   roleCard: {
     flex: 1,
+    minWidth: "45%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 18,

@@ -4,12 +4,14 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 
 export const createRate = asyncHandler(async (req, res) => {
-  const { siteId, workerType, dailyRate, overtimeRatePerHour } = req.body;
+  const { siteId, workerType, dailyRate } = req.body;
   const ownerId = req.user.userId;
 
-  if (!workerType || dailyRate == null || overtimeRatePerHour == null) {
+  if (!workerType || dailyRate == null) {
     throw new ApiError(400, "All fields are required");
   }
+
+  const computedOT = dailyRate / 8;
 
   // Deactivate existing active rate for this combination if it exists
   await Rate.updateMany(
@@ -22,7 +24,7 @@ export const createRate = asyncHandler(async (req, res) => {
     siteId: siteId || null,
     workerType,
     dailyRate,
-    overtimeRatePerHour,
+    overtimeRatePerHour: computedOT,
     isActive: true,
   });
 

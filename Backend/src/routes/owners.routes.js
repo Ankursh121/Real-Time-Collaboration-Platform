@@ -11,6 +11,7 @@ import {
   getUniversalDashboard,
   updateWorkerProfile,
   deleteUser,
+  addFamilyMember,
 } from "../controllers/owners.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -33,6 +34,8 @@ router.patch("/assign-admin/:workerId", isOwner, assignAdminRole);
 router.patch("/remove-admin/:workerId", isOwner, removeAdminRole);
 router.patch("/update-profile/:workerId", isOwner, updateWorkerProfile);
 router.delete("/delete/:userId", isOwner, deleteUser);
+
+router.post("/workers/:parentWorkerId/family", isOwner, addFamilyMember);
 
 router.post("/rates", isOwner, createRate);
 router.get("/rates", isOwner, getActiveRates);

@@ -12,7 +12,14 @@ export const checkWorkerLimit = asyncHandler(async (req, res, next) => {
     ownerId = req.user.role === "Owner" ? req.user.userId : req.user.ownerId;
   } else if (req.body && req.body.inviteCode) {
     // Action performed by Worker during registration
-    const owner = await User.findOne({ inviteCode: req.body.inviteCode, role: "Owner" });
+    const owner = await User.findOne({
+      $or: [
+        { inviteCode: req.body.inviteCode },
+        { workerInviteCode: req.body.inviteCode },
+        { adminInviteCode: req.body.inviteCode }
+      ],
+      role: "Owner"
+    });
     if (!owner) throw new ApiError(400, "Invalid contractor invite code");
     ownerId = owner._id;
   } else {

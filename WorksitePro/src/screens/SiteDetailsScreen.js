@@ -51,8 +51,6 @@ export default function SiteDetailsScreen({ route, navigation }) {
   
   // Deletion state
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteStep, setDeleteStep] = useState(1); // 1: Initial, 2: OTP
-  const [deleteOtp, setDeleteOtp] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   const fetchData = async () => {
@@ -236,33 +234,17 @@ export default function SiteDetailsScreen({ route, navigation }) {
     }
   };
 
-  const handleRequestDelete = async () => {
-    try {
-      setDeleting(true);
-      const res = await API.post(`/sites/request-delete/${siteId}`);
-      if (res.data.success) {
-        setDeleteStep(2);
-      }
-    } catch (e) {
-      Alert.alert("Error", e.response?.data?.message || "Failed to send OTP.");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handleConfirmDelete = async () => {
-    if (deleteOtp.length !== 6) return Alert.alert("Invalid OTP", "Please enter 6-digit OTP.");
-    
     try {
       setDeleting(true);
-      const res = await API.delete(`/sites/confirm-delete/${siteId}`, { data: { otp: deleteOtp } });
+      const res = await API.delete(`/sites/confirm-delete/${siteId}`);
       if (res.data.success) {
         setDeleteModalVisible(false);
         Alert.alert("Deleted", "Site has been permanently deleted.");
         navigation.navigate("Dashboard");
       }
     } catch (e) {
-      Alert.alert("Error", e.response?.data?.message || "Invalid OTP or deletion failed.");
+      Alert.alert("Error", e.response?.data?.message || "Deletion failed.");
     } finally {
       setDeleting(false);
     }
@@ -604,52 +586,25 @@ export default function SiteDetailsScreen({ route, navigation }) {
               <Text style={styles.modalTitle}>Delete Site</Text>
               <TouchableOpacity onPress={() => {
                 setDeleteModalVisible(false);
-                setDeleteStep(1);
-                setDeleteOtp("");
               }}>
                 <Ionicons name="close-circle" size={32} color={COLORS.mutedForeground} />
               </TouchableOpacity>
             </View>
 
-            {deleteStep === 1 ? (
-              <View>
-                <Text style={styles.deleteWarning}>
-                  Are you sure you want to delete <Text style={{ fontWeight: '900', color: COLORS.foreground }}>{siteName}</Text>? 
-                  This action is permanent and cannot be undone.
-                </Text>
-                <FuturisticButton
-                  variant="primary"
-                  onPress={handleRequestDelete}
-                  loading={deleting}
-                  style={styles.deleteBtn}
-                >
-                  Request Deletion OTP
-                </FuturisticButton>
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.otpInfo}>
-                  Enter the 6-digit OTP sent to your registered phone number to confirm deletion.
-                </Text>
-                <TextInput
-                  style={styles.otpInput}
-                  placeholder="000000"
-                  keyboardType="numeric"
-                  maxLength={6}
-                  value={deleteOtp}
-                  onChangeText={setDeleteOtp}
-                  placeholderTextColor={COLORS.mutedForeground}
-                />
-                <FuturisticButton
-                  variant="primary"
-                  onPress={handleConfirmDelete}
-                  loading={deleting}
-                  style={styles.confirmDeleteBtn}
-                >
-                  Confirm Permanent Deletion
-                </FuturisticButton>
-              </View>
-            )}
+            <View>
+              <Text style={styles.deleteWarning}>
+                Are you sure you want to delete <Text style={{ fontWeight: '900', color: COLORS.foreground }}>{siteName}</Text>? 
+                This action is permanent and cannot be undone.
+              </Text>
+              <FuturisticButton
+                variant="primary"
+                onPress={handleConfirmDelete}
+                loading={deleting}
+                style={styles.deleteBtn}
+              >
+                Confirm Permanent Deletion
+              </FuturisticButton>
+            </View>
           </View>
         </View>
       </Modal>

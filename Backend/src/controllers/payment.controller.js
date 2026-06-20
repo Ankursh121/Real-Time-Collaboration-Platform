@@ -17,14 +17,20 @@ export const generatePayment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Required fields missing");
   }
 
+  const effectiveOwnerId = req.user.role === UserRoles.OWNER ? req.user.userId : req.user.ownerId;
+
   const worker = await User.findById(workerId);
   if (!worker) {
     throw new ApiError(404, "Worker not found");
   }
 
  
-  if (worker.ownerId.toString() !== req.user.userId.toString()) {
+  if (worker.ownerId.toString() !== effectiveOwnerId.toString()) {
     throw new ApiError(403, "Unauthorized action");
+  }
+
+  if (req.user.role === UserRoles.ADMIN && worker.role === UserRoles.ADMIN) {
+    throw new ApiError(403, "Admins are not authorized to generate payments for administrators.");
   }
 
   const attendances = await Attendance.find({
@@ -43,39 +49,50 @@ export const generatePayment = asyncHandler(async (req, res) => {
   let totalAmount = 0;
 
   for (const record of attendances) {
-    let rate = await Rate.findOne({
-      ownerId: req.user.userId,
-      siteId,
-      workerType: worker.workerType,
-      isActive: true,
-    });
+    let dailyRate = 0;
+    let overtimeRatePerHour = 0;
 
-    if (!rate) {
-      // Fallback to global rate (null site)
-      rate = await Rate.findOne({
-        ownerId: req.user.userId,
-        siteId: null,
+    if (worker.DailyRate > 0) {
+      dailyRate = worker.DailyRate;
+      overtimeRatePerHour = dailyRate / 8;
+    } else {
+      let rate = await Rate.findOne({
+        ownerId: effectiveOwnerId,
+        siteId,
         workerType: worker.workerType,
         isActive: true,
       });
-    }
 
-    if (!rate) {
-      throw new ApiError(400, `Active compensation rate not found for ${worker.workerType} (Site or Global)`);
+      if (!rate) {
+        // Fallback to global rate (null site)
+        rate = await Rate.findOne({
+          ownerId: effectiveOwnerId,
+          siteId: null,
+          workerType: worker.workerType,
+          isActive: true,
+        });
+      }
+
+      if (!rate) {
+        throw new ApiError(400, `Active compensation rate not found for ${worker.workerType} (Site or Global)`);
+      }
+
+      dailyRate = rate.dailyRate;
+      overtimeRatePerHour = dailyRate / 8;
     }
 
     const wage = calculateWage({
       hoursWorked: record.hoursWorked,
       overtimeHours: record.overtimeHours,
-      dailyRate: rate.dailyRate,
-      overtimeRatePerHour: rate.overtimeRatePerHour,
+      dailyRate,
+      overtimeRatePerHour,
     });
 
     totalAmount += wage.totalWage;
   }
 
   const payment = await Payment.create({
-    ownerId: req.user.userId,
+    ownerId: effectiveOwnerId,
     workerId,
     siteId,
     periodStart,
@@ -100,7 +117,7 @@ export const getAllPayments = asyncHandler(async (req, res) => {
     if (req.user.siteId) {
       query.siteId = req.user.siteId;
     } else {
-        return res.status(200).json(new ApiResponse(200, [], "Admin has no site assigned"));
+      return res.status(200).json(new ApiResponse(200, [], "Admin has no site assigned"));
     }
   }
 
@@ -128,8 +145,9 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Payment not found");
   }
 
+  const effectiveOwnerId = req.user.role === UserRoles.OWNER ? req.user.userId : req.user.ownerId;
 
-  if (payment.ownerId.toString() !== req.user.userId.toString()) {
+  if (payment.ownerId.toString() !== effectiveOwnerId.toString()) {
     throw new ApiError(403, "Unauthorized action");
   }
 
@@ -157,12 +175,12 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
 
 export const getWorkerPaymentSummary = asyncHandler(async (req, res) => {
   const ownerId = req.user.role === UserRoles.OWNER ? req.user.userId : req.user.ownerId;
-  
+
   // 1. Get all workers and their current rates (approximate for live summary)
   const workers = await User.find({ 
       ownerId, 
       role: UserRoles.WORKER 
-  }).select("name phone workerType siteId");
+  }).select("name phone workerType siteId DailyRate");
 
   // 2. Get all rates for this owner to calculate live dues
   const allRates = await Rate.find({ ownerId, isActive: true });
@@ -197,22 +215,31 @@ export const getWorkerPaymentSummary = asyncHandler(async (req, res) => {
       
       let totalEarned = 0;
       wAttendance.forEach(a => {
-          // Find rate for this worker category on this site, or global fallback
-          let rate = allRates.find(r => 
-              r.workerType === worker.workerType && 
-              r.siteId?.toString() === a._id.siteId?.toString()
-          );
+          let dailyRate = worker.DailyRate > 0 ? worker.DailyRate : 0;
+          let overtimeRatePerHour = 0;
 
-          if (!rate) {
-              rate = allRates.find(r => r.workerType === worker.workerType && !r.siteId);
+          if (dailyRate === 0) {
+              // Find rate for this worker category on this site, or global fallback
+              let rate = allRates.find(r => 
+                  r.workerType === worker.workerType && 
+                  r.siteId?.toString() === a._id.siteId?.toString()
+              );
+
+              if (!rate) {
+                  rate = allRates.find(r => r.workerType === worker.workerType && !r.siteId);
+              }
+
+              if (rate) {
+                  dailyRate = rate.dailyRate;
+              }
           }
 
-          if (rate) {
-              // Simple wage calc for summary: (hours / 8) * dailyRate + overtime * otRate
-              // Match wageCalculator.js logic roughly
+          overtimeRatePerHour = dailyRate / 8;
+
+          if (dailyRate > 0) {
               const standardHours = 8;
-              const baseWage = a.hours >= standardHours ? rate.dailyRate : (rate.dailyRate / standardHours) * a.hours;
-              const otWage = a.overtime * rate.overtimeRatePerHour;
+              const baseWage = a.hours >= standardHours ? dailyRate : (dailyRate / standardHours) * a.hours;
+              const otWage = a.overtime * overtimeRatePerHour;
               totalEarned += (baseWage + otWage);
           }
       });
@@ -246,6 +273,10 @@ export const recordManualPayment = asyncHandler(async (req, res) => {
     const worker = await User.findById(workerId);
     if (!worker || worker.ownerId.toString() !== ownerId.toString()) {
         throw new ApiError(404, "Worker not found or unauthorized");
+    }
+
+    if (req.user.role === UserRoles.ADMIN && worker.role === UserRoles.ADMIN) {
+        throw new ApiError(403, "Admins are not authorized to disburse payments to administrators.");
     }
 
     // Create a special manual payment record

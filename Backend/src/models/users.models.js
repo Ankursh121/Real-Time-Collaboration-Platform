@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema(
 
         role : {
             type : String,
-            enum : ["Owner" , "Admin" , "Worker"],
+            enum : ["Owner" , "Admin" , "Worker", "Subcontractor"],
             default : "Worker",
         },
 
@@ -58,6 +58,12 @@ const userSchema = new mongoose.Schema(
         siteId : {
              type: mongoose.Schema.Types.ObjectId,
              ref: "Site",
+             default: null,
+        },
+
+        parentWorkerId : {
+             type: mongoose.Schema.Types.ObjectId,
+             ref: "User",
              default: null,
         },
 
@@ -93,16 +99,18 @@ const userSchema = new mongoose.Schema(
             sparse: true, // allows multiple null values
             trim: true,
         },    
-
-        OTP : {
-            type : String,
-            select : false
+        workerInviteCode: {
+            type: String,
+            unique: true,
+            sparse: true,
+            trim: true,
         },
-
-        OTPExpiresAt : {
-            type : Date,
+        adminInviteCode: {
+            type: String,
+            unique: true,
+            sparse: true,
+            trim: true,
         },
-
     }, {timestamps : true});
 
 const User = mongoose.model("User" , userSchema);

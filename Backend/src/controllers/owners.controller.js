@@ -1,4 +1,5 @@
 import User from "../models/users.models.js";
+import crypto from "crypto";
 import Rate from "../models/rate.models.js";
 import Attendance from "../models/attendance.models.js";
 import Payment from "../models/payment.models.js";
@@ -159,15 +160,16 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
 
 export const createRate = asyncHandler(async (req, res) => {
-  const { siteId, workerType, dailyRate, overtimeRatePerHour } = req.body;
+  const { siteId, workerType, dailyRate } = req.body;
 
   if (
     !workerType ||
-    dailyRate === undefined ||
-    overtimeRatePerHour === undefined
+    dailyRate === undefined
   ) {
     throw new ApiError(400, "Required rate fields missing");
   }
+
+  const computedOT = dailyRate / 8;
 
   await Rate.updateMany(
     {
@@ -184,7 +186,7 @@ export const createRate = asyncHandler(async (req, res) => {
     siteId: siteId || null,
     workerType,
     dailyRate,
-    overtimeRatePerHour,
+    overtimeRatePerHour: computedOT,
     effectiveFrom: new Date(),
     isActive: true,
   });
@@ -351,7 +353,21 @@ export const getUniversalDashboard = asyncHandler(async (req, res) => {
       }))
   ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
 
-  const user = await User.findById(req.user.userId);
+  const ownerUser = await User.findById(ownerId);
+  if (ownerUser) {
+    let updated = false;
+    if (!ownerUser.workerInviteCode || ownerUser.workerInviteCode === ownerUser.inviteCode) {
+      ownerUser.workerInviteCode = "W-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+      updated = true;
+    }
+    if (!ownerUser.adminInviteCode || ownerUser.adminInviteCode === ownerUser.inviteCode || ownerUser.adminInviteCode === ownerUser.workerInviteCode) {
+      ownerUser.adminInviteCode = "A-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+      updated = true;
+    }
+    if (updated) {
+      await ownerUser.save();
+    }
+  }
 
   return res.status(200).json(
     new ApiResponse(
@@ -371,11 +387,60 @@ export const getUniversalDashboard = asyncHandler(async (req, res) => {
         siteStats: siteDistribution,
         recentActivity: activities,
         owner: {
-            name: user.name,
-            inviteCode: user.inviteCode
+            name: ownerUser?.name || "",
+            inviteCode: ownerUser?.inviteCode || "",
+            workerInviteCode: ownerUser?.workerInviteCode || "",
+            adminInviteCode: ownerUser?.adminInviteCode || ""
         }
       },
       "Dashboard analytics fetched successfully"
     )
+  );
+});
+
+export const addFamilyMember = asyncHandler(async (req, res) => {
+  const { parentWorkerId } = req.params;
+  const { name, phone, gender, workerType, DailyRate } = req.body;
+
+  const parentWorker = await User.findOne({
+    _id: parentWorkerId,
+    ownerId: req.user.userId,
+    role: UserRoles.WORKER,
+  });
+
+  if (!parentWorker) {
+    throw new ApiError(404, "Parent worker not found");
+  }
+
+  if (!name || !gender || !workerType) {
+    throw new ApiError(400, "Name, gender, and worker type are required");
+  }
+
+  // Generate unique phone suffix if not provided
+  let finalPhone = phone?.trim();
+  if (!finalPhone) {
+    finalPhone = `${parentWorker.phone}-f${Date.now()}`;
+  }
+
+  const existingUser = await User.findOne({ phone: finalPhone });
+  if (existingUser) {
+    throw new ApiError(409, "A worker with this phone number already exists");
+  }
+
+  const worker = await User.create({
+    name,
+    phone: finalPhone,
+    gender,
+    workerType,
+    DailyRate: Number(DailyRate) || 0,
+    role: UserRoles.WORKER,
+    status: UserStatus.ACTIVE,
+    ownerId: req.user.userId,
+    parentWorkerId: parentWorker._id,
+    siteId: parentWorker.siteId, // Inherit siteId from parent worker
+  });
+
+  return res.status(201).json(
+    new ApiResponse(201, worker, "Family member added successfully")
   );
 });

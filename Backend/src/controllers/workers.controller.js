@@ -32,7 +32,10 @@ export const registerWorker = asyncHandler(async (req, res) => {
   // Owner is optional – if an invite code is supplied, attach the worker to that owner.
   let ownerId = null;
   if (inviteCode) {
-    const owner = await User.findOne({ inviteCode, role: UserRoles.OWNER });
+    const owner = await User.findOne({
+      $or: [{ workerInviteCode: inviteCode }, { inviteCode }],
+      role: UserRoles.OWNER
+    });
     if (!owner) {
       throw new ApiError(400, "Invalid contractor invite code");
     }
@@ -101,10 +104,14 @@ export const getMyProfile = asyncHandler(async (req, res) => {
 
 
 export const getMyAttendance = asyncHandler(async (req, res) => {
+  const familyMembers = await User.find({ parentWorkerId: req.user.userId });
+  const ids = [req.user.userId, ...familyMembers.map((m) => m._id)];
+
   const attendance = await Attendance.find({
-    workerId: req.user.userId,
+    workerId: { $in: ids },
   })
     .sort({ date: -1 })
+    .populate("workerId", "name phone")
     .populate("siteId", "name location");
 
   return res.status(200).json(
@@ -118,10 +125,14 @@ export const getMyAttendance = asyncHandler(async (req, res) => {
 
 
 export const getMyPayments = asyncHandler(async (req, res) => {
+  const familyMembers = await User.find({ parentWorkerId: req.user.userId });
+  const ids = [req.user.userId, ...familyMembers.map((m) => m._id)];
+
   const payments = await Payment.find({
-    workerId: req.user.userId,
+    workerId: { $in: ids },
   })
     .sort({ periodStart: -1 })
+    .populate("workerId", "name phone")
     .populate("siteId", "name location");
 
   return res.status(200).json(
@@ -138,37 +149,44 @@ export const getMyEarningSummary = asyncHandler(async (req, res) => {
   const worker = await User.findById(workerId);
   if (!worker) throw new ApiError(404, "Worker not found");
 
-  const ownerId = worker.ownerId;
+  const familyMembers = await User.find({ parentWorkerId: workerId });
+  const allWorkers = [worker, ...familyMembers];
+  const ids = allWorkers.map((w) => w._id);
 
-  // 1. Get all payments recorded for this worker
-  const payments = await Payment.find({ workerId });
+  // 1. Get all payments recorded for these workers
+  const payments = await Payment.find({ workerId: { $in: ids } });
   const totalPaid = payments.reduce((sum, p) => sum + p.paidAmount, 0);
 
-  // 2. Get all attendance records for this worker
-  const attendanceRecords = await Attendance.find({ workerId });
+  // 2. Get all attendance records for these workers
+  const attendanceRecords = await Attendance.find({ workerId: { $in: ids } });
 
   // 3. Get relevant rates for this owner/workerType
   const rates = await Rate.find({ 
-    ownerId, 
-    workerType: worker.workerType,
+    ownerId: worker.ownerId, 
     isActive: true 
   });
 
   // 4. Calculate live earnings
   let totalEarned = 0;
-  attendanceRecords.forEach(a => {
-      // Find rate for this specific site or global fallback
-      let rate = rates.find(r => r.siteId?.toString() === a.siteId?.toString());
-      if (!rate) {
-          rate = rates.find(r => !r.siteId);
-      }
+  attendanceRecords.forEach((a) => {
+    const w = allWorkers.find((x) => x._id.toString() === a.workerId.toString());
+    if (!w) return;
 
-      if (rate) {
-          const standardHours = 8;
-          const baseWage = a.hoursWorked >= standardHours ? rate.dailyRate : (rate.dailyRate / standardHours) * a.hoursWorked;
-          const otWage = a.overtimeHours * rate.overtimeRatePerHour;
-          totalEarned += (baseWage + otWage);
-      }
+    // Find rate for this specific site or global fallback
+    let rate = rates.find((r) => r.workerType === w.workerType && r.siteId?.toString() === a.siteId?.toString());
+    if (!rate) {
+      rate = rates.find((r) => r.workerType === w.workerType && !r.siteId);
+    }
+
+    let dailyRate = w.DailyRate > 0 ? w.DailyRate : (rate ? rate.dailyRate : 0);
+    let overtimeRatePerHour = dailyRate / 8;
+
+    if (dailyRate > 0) {
+      const standardHours = 8;
+      const baseWage = a.hoursWorked >= standardHours ? dailyRate : (dailyRate / standardHours) * a.hoursWorked;
+      const otWage = a.overtimeHours * overtimeRatePerHour;
+      totalEarned += (baseWage + otWage);
+    }
   });
 
   const roundedEarned = Math.round(totalEarned);

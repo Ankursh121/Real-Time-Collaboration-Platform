@@ -135,6 +135,7 @@ export default function WorkerDashboardScreen({ navigation }) {
                         {new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                       </Text>
                       <Text style={[styles.actStatus, { color: indicatorColor }]}>
+                        {item.workerId?.name ? `${item.workerId.name} • ` : ""}
                         {isAttendance ? 'Work Session' : 'Payment Received'}
                       </Text>
                     </View>

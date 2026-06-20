@@ -8,7 +8,6 @@ import {
   assignWorkerToSite,
   removeWorkerFromSite,
   getSiteStats,
-  requestSiteDelete,
   confirmSiteDelete,
   generateSiteReport,
   getSiteReportData,
@@ -31,7 +30,6 @@ router.patch("/deactivate/:siteId", isOwner, deactivateSite);
 router.patch("/assign-worker/:siteId", isOwner, assignWorkerToSite);
 router.patch("/remove-worker/:siteId", isOwner, removeWorkerFromSite);
 router.patch("/:siteId", isOwner, updateSite);
-router.post("/request-delete/:siteId", isOwner, requestSiteDelete);
 router.delete("/confirm-delete/:siteId", isOwner, confirmSiteDelete);
 
 export default router;

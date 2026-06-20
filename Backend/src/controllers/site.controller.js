@@ -8,7 +8,6 @@ import ApiError from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { UserRoles } from "../constants/user.constants.js";
-import twilio from "twilio";
 
 
 export const createSite = asyncHandler(async (req, res) => {
@@ -240,60 +239,12 @@ export const removeWorkerFromSite = asyncHandler(async (req, res) => {
   );
 });
 
-// Step 1: Owner requests site deletion — sends OTP to their phone
-export const requestSiteDelete = asyncHandler(async (req, res) => {
-  const { siteId } = req.params;
-
-  const site = await Site.findOne({ _id: siteId, ownerId: req.user.userId });
-  if (!site) throw new ApiError(404, "Site not found");
-
-  const owner = await User.findById(req.user.userId);
-  if (!owner) throw new ApiError(404, "Owner not found");
-  if (!owner.phone) throw new ApiError(400, "No phone number on file");
-
-  // Reuse same dummy OTP pattern as auth
-  const otp = "123456";
-  owner.OTP = otp;
-  owner.OTPExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
-  await owner.save();
-
-  console.log(`[Site Delete OTP] Site: ${site.name} | OTP: ${otp}`);
-
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== "placeholder_account_sid") {
-    try {
-      const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-      const formattedPhone = owner.phone.startsWith("+") ? owner.phone : `+91${owner.phone}`;
-      await client.messages.create({
-        body: `WARNING: OTP to permanently delete site "${site.name}" is ${otp}. Valid 5 mins. Do NOT share.`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: formattedPhone,
-      });
-    } catch (err) {
-      console.error("Twilio error:", err.message);
-    }
-  }
-
-  return res.status(200).json(new ApiResponse(200, {}, "Deletion OTP sent to your registered number"));
-});
-
-// Step 2: Owner confirms deletion with OTP — permanently deletes site
+// Confirm deletion — permanently deletes site directly (no OTP required)
 export const confirmSiteDelete = asyncHandler(async (req, res) => {
   const { siteId } = req.params;
-  const { otp } = req.body;
-
-  if (!otp) throw new ApiError(400, "OTP is required");
 
   const site = await Site.findOne({ _id: siteId, ownerId: req.user.userId });
   if (!site) throw new ApiError(404, "Site not found");
-
-  const owner = await User.findById(req.user.userId).select("+OTP");
-  if (!owner?.OTP || owner.OTP !== otp) throw new ApiError(400, "Invalid OTP");
-  if (owner.OTPExpiresAt < new Date()) throw new ApiError(400, "OTP expired");
-
-  // Clear OTP
-  owner.OTP = undefined;
-  owner.OTPExpiresAt = undefined;
-  await owner.save();
 
   // Unassign all workers from this site
   await User.updateMany({ siteId: site._id }, { $unset: { siteId: 1 } });
@@ -326,21 +277,27 @@ export const getSiteReportData = asyncHandler(async (req, res) => {
       date: { $gte: startOfMonth }
     });
 
-    const rate = await Rate.findOne({ 
-      ownerId, 
-      siteId, 
-      workerType: worker.workerType,
-      isActive: true 
-    });
+    let dailyRate = worker.DailyRate > 0 ? worker.DailyRate : 0;
+    let overtimeRatePerHour = 0;
+
+    if (dailyRate === 0) {
+      const rate = await Rate.findOne({ 
+        ownerId, 
+        siteId, 
+        workerType: worker.workerType,
+        isActive: true 
+      });
+      if (rate) dailyRate = rate.dailyRate;
+    }
+
+    overtimeRatePerHour = dailyRate / 8;
 
     let estEarnings = 0;
-    if (rate) {
-      attendances.forEach(a => {
-        const base = (rate.dailyRate / 8) * a.hoursWorked;
-        const ot = a.overtimeHours * rate.overtimeRatePerHour;
-        estEarnings += (base + ot);
-      });
-    }
+    attendances.forEach(a => {
+      const base = a.hoursWorked >= 8 ? dailyRate : (dailyRate / 8) * a.hoursWorked;
+      const ot = a.overtimeHours * overtimeRatePerHour;
+      estEarnings += (base + ot);
+    });
 
     reportData.push({
       name: worker.name,
@@ -421,21 +378,27 @@ export const generateSiteReport = asyncHandler(async (req, res) => {
       date: { $gte: startOfMonth }
     });
 
-    const rate = await Rate.findOne({ 
-      ownerId, 
-      siteId, 
-      workerType: worker.workerType,
-      isActive: true 
-    });
+    let dailyRate = worker.DailyRate > 0 ? worker.DailyRate : 0;
+    let overtimeRatePerHour = 0;
+
+    if (dailyRate === 0) {
+      const rate = await Rate.findOne({ 
+        ownerId, 
+        siteId, 
+        workerType: worker.workerType,
+        isActive: true 
+      });
+      if (rate) dailyRate = rate.dailyRate;
+    }
+
+    overtimeRatePerHour = dailyRate / 8;
 
     let estEarnings = 0;
-    if (rate) {
-      attendances.forEach(a => {
-        const base = (rate.dailyRate / 8) * a.hoursWorked;
-        const ot = a.overtimeHours * rate.overtimeRatePerHour;
-        estEarnings += (base + ot);
-      });
-    }
+    attendances.forEach(a => {
+      const base = a.hoursWorked >= 8 ? dailyRate : (dailyRate / 8) * a.hoursWorked;
+      const ot = a.overtimeHours * overtimeRatePerHour;
+      estEarnings += (base + ot);
+    });
 
     doc.text(`Rs. ${estEarnings.toFixed(2)}`, 450, y);
     doc.moveDown();
