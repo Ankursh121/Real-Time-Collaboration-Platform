@@ -122,7 +122,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
   // Handle owner linkage and invite code for Google Login
   if (role) {
     if (user.role === UserRoles.WORKER || user.role === UserRoles.ADMIN || user.role === UserRoles.SUBCONTRACTOR) {
-        if (inviteCode) {
+        if (inviteCode && inviteCode.trim() !== "") {
           const normalizedCode = inviteCode.trim().toUpperCase();
           console.log(`[DEBUG] Looking for owner with code: "${normalizedCode}"`);
           

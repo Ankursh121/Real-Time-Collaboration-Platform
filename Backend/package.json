@@ -12,7 +12,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "clean-db": "node clean-db.js"
   },
   "dependencies": {
     "axios-auth-refresh": "^5.0.2",

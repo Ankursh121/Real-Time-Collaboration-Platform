@@ -155,7 +155,10 @@ export const verifyFirebaseToken = async (firebaseToken) => {
           name,
         };
       } catch (err) {
-        throw new ApiError(400, `Firebase token validation failed: ${err.message}`);
+        if (process.env.NODE_ENV === "production") {
+          throw new ApiError(400, `Firebase token validation failed: ${err.message}`);
+        }
+        console.warn("[Firebase Verification] Admin SDK verification failed, trying offline fallback:", err.message);
       }
     }
   }
